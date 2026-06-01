@@ -11,6 +11,7 @@
 - [Panel administrativo web](07-panel-admin-web.md)
 - [WhatsApp, kiosco Android y llamadas](08-whatsapp-kiosco-llamadas.md)
 - [App de residentes y produccion](09-app-residentes-y-produccion.md)
+- [Diseno visual de la app movil](10-diseno-visual-app.md)
 
 ## Relacion con OpenSpec
 

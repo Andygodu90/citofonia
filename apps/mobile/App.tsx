@@ -14,6 +14,22 @@ import {
 
 const DEFAULT_API_URL = 'http://localhost:3000';
 
+const palette = {
+  bg: '#eef4f8',
+  surface: '#ffffff',
+  surfaceMuted: '#f6f8fb',
+  ink: '#172033',
+  muted: '#667085',
+  line: '#dde5ee',
+  primary: '#0f766e',
+  primaryDark: '#134e4a',
+  navy: '#172554',
+  amber: '#f59e0b',
+  green: '#16a34a',
+  red: '#dc2626',
+  blue: '#2563eb',
+};
+
 type UnitSearchResult = {
   id: string;
   propertyName: string;
@@ -747,17 +763,40 @@ export default function App() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Porteria</Text>
-          <Text style={styles.title}>Arcadas de San Isidro</Text>
+        <View style={styles.headerCard}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandMarkText}>A</Text>
+            </View>
+            <View style={styles.brandTextBlock}>
+              <Text style={styles.eyebrow}>Citofonia residencial</Text>
+              <Text style={styles.title}>Arcadas de San Isidro</Text>
+            </View>
+          </View>
           <Text style={styles.subtitle}>
-            Busca una unidad, contacta al residente y registra la gestion sin
-            mostrar nombres ni telefonos.
+            Control de acceso, visitas y comunicacion protegida para porteria y
+            residentes.
           </Text>
+          <View style={styles.headerMetrics}>
+            <View style={styles.metricTile}>
+              <Text style={styles.metricValue}>300</Text>
+              <Text style={styles.metricLabel}>Unidades</Text>
+            </View>
+            <View style={styles.metricTile}>
+              <Text style={styles.metricValue}>15</Text>
+              <Text style={styles.metricLabel}>Bloques</Text>
+            </View>
+            <View style={styles.metricTile}>
+              <Text style={styles.metricValue}>
+                {session ? session.role : 'Demo'}
+              </Text>
+              <Text style={styles.metricLabel}>Perfil</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.panel}>
-          <Text style={styles.label}>Servidor API</Text>
+        <View style={styles.utilityPanel}>
+          <Text style={styles.label}>Conexion API</Text>
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
@@ -774,7 +813,10 @@ export default function App() {
 
         {!session ? (
           <View style={styles.panel}>
-            <Text style={styles.label}>Ingreso de porteria</Text>
+            <Text style={styles.panelTitle}>Ingresar al sistema</Text>
+            <Text style={styles.hint}>
+              Usa tu perfil de porteria, administracion o residente.
+            </Text>
             <TextInput
               autoCapitalize="none"
               autoCorrect={false}
@@ -816,6 +858,30 @@ export default function App() {
             </Pressable>
           </View>
         )}
+
+        <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
+          <Text style={styles.noticeText}>{notice.text}</Text>
+        </View>
+
+        {isPorterSession ? (
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Resumen de porteria</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{pendingAuthorizations.length}</Text>
+                <Text style={styles.statLabel}>Pendientes</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{movements.pendingEntry.length}</Text>
+                <Text style={styles.statLabel}>Por entrar</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{movements.pendingExit.length}</Text>
+                <Text style={styles.statLabel}>Por salir</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         {isResidentSession ? (
           <View style={styles.panel}>
@@ -910,7 +976,8 @@ export default function App() {
 
         {isPorterSession ? (
         <View style={styles.panel}>
-          <Text style={styles.label}>Buscar unidad</Text>
+          <Text style={styles.panelTitle}>Buscador de unidades</Text>
+          <Text style={styles.hint}>Consulta por bloque, apartamento o combinacion.</Text>
           <View style={styles.searchRow}>
             <TextInput
               autoCapitalize="characters"
@@ -929,10 +996,6 @@ export default function App() {
           </View>
 
           {loading ? <ActivityIndicator color="#111827" /> : null}
-
-          <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
-            <Text style={styles.noticeText}>{notice.text}</Text>
-          </View>
 
           {selectedSummary ? (
             <View style={[styles.unitItem, styles.unitItemSelected]}>
@@ -962,7 +1025,7 @@ export default function App() {
           <View style={styles.panel}>
             <Pressable onPress={toggleMovements} style={styles.accordionHeader}>
               <View>
-                <Text style={styles.label}>Entradas y salidas</Text>
+                <Text style={styles.panelTitle}>Entradas y salidas</Text>
                 <Text style={styles.hint}>
                   {isMovementsOpen ? 'Toca para ocultar' : 'Toca para abrir'}
                 </Text>
@@ -1035,7 +1098,7 @@ export default function App() {
               style={styles.accordionHeader}
             >
               <View>
-                <Text style={styles.label}>Ingresos pendientes</Text>
+                <Text style={styles.panelTitle}>Ingresos pendientes</Text>
                 <Text style={styles.hint}>
                   {isPendingOpen ? 'Toca para ocultar' : 'Toca para abrir'}
                 </Text>
@@ -1095,7 +1158,7 @@ export default function App() {
           <View style={styles.panel}>
             <Pressable onPress={toggleHistory} style={styles.accordionHeader}>
               <View>
-                <Text style={styles.label}>Historial reciente</Text>
+                <Text style={styles.panelTitle}>Historial reciente</Text>
                 <Text style={styles.hint}>
                   {isHistoryOpen ? 'Toca para ocultar' : 'Toca para abrir'}
                 </Text>
@@ -1140,7 +1203,7 @@ export default function App() {
 
         {isPorterSession && selectedUnit ? (
           <View style={styles.panel}>
-            <Text style={styles.label}>Unidad seleccionada</Text>
+            <Text style={styles.panelTitle}>Unidad seleccionada</Text>
             <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
             <Text style={styles.hint}>{selectedUnit.protectedSummary}</Text>
             <Text style={styles.privacy}>{selectedUnit.privacyNotice}</Text>
@@ -1193,7 +1256,7 @@ export default function App() {
 
             <View style={styles.divider} />
 
-            <Text style={styles.label}>Registro de visitante</Text>
+            <Text style={styles.panelTitle}>Registro de visitante</Text>
             <TextInput
               onChangeText={setVisitorName}
               placeholder="Nombre del visitante"
@@ -1240,7 +1303,7 @@ export default function App() {
 
             <View style={styles.divider} />
 
-            <Text style={styles.label}>Mensaje interno</Text>
+            <Text style={styles.panelTitle}>Comunicacion protegida</Text>
             <TextInput
               multiline
               onChangeText={setChatMessage}
@@ -1282,41 +1345,112 @@ export default function App() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f5f7fb',
+    backgroundColor: palette.bg,
   },
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 36,
   },
-  header: {
-    gap: 8,
-    marginBottom: 18,
-    marginTop: 10,
+  headerCard: {
+    backgroundColor: palette.navy,
+    borderRadius: 8,
+    gap: 14,
+    marginBottom: 14,
+    marginTop: 8,
+    padding: 18,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  brandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  brandMark: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  brandMarkText: {
+    color: palette.primary,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  brandTextBlock: {
+    flex: 1,
   },
   eyebrow: {
-    color: '#1d4ed8',
-    fontSize: 13,
+    color: '#bde7e3',
+    fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   title: {
-    color: '#111827',
-    fontSize: 31,
+    color: '#ffffff',
+    fontSize: 25,
     fontWeight: '900',
   },
   subtitle: {
-    color: '#4b5563',
-    fontSize: 16,
-    lineHeight: 23,
+    color: '#dce7f3',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  headerMetrics: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metricTile: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    padding: 10,
+  },
+  metricValue: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  metricLabel: {
+    color: '#b9c8da',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
   panel: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e7eb',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
+    shadowColor: '#102033',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  utilityPanel: {
+    backgroundColor: '#f8fbfd',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 12,
+    padding: 14,
+  },
+  panelTitle: {
+    color: palette.ink,
+    fontSize: 18,
+    fontWeight: '900',
   },
   accordionHeader: {
     alignItems: 'center',
@@ -1328,61 +1462,63 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   accordionIcon: {
-    color: '#1d4ed8',
+    color: palette.primary,
     fontSize: 14,
     fontWeight: '900',
   },
   sessionBar: {
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
   },
   sessionLabel: {
-    color: '#d1d5db',
+    color: palette.muted,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   sessionUser: {
-    color: '#ffffff',
+    color: palette.ink,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 2,
   },
   logoutButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fef2f2',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   logoutText: {
-    color: '#111827',
+    color: palette.red,
     fontSize: 14,
     fontWeight: '900',
   },
   label: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#d1d5db',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    color: '#111827',
+    color: palette.ink,
     fontSize: 16,
     minHeight: 48,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   hint: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1396,7 +1532,7 @@ const styles = StyleSheet.create({
   },
   smallButton: {
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: palette.primary,
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 48,
@@ -1413,11 +1549,12 @@ const styles = StyleSheet.create({
   notice: {
     borderRadius: 8,
     borderWidth: 1,
+    marginBottom: 12,
     padding: 12,
   },
   infoNotice: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
+    backgroundColor: '#ecfeff',
+    borderColor: '#a5f3fc',
   },
   successNotice: {
     backgroundColor: '#ecfdf5',
@@ -1428,46 +1565,47 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
   noticeText: {
-    color: '#1f2937',
+    color: palette.ink,
     fontSize: 14,
     lineHeight: 20,
   },
   unitItem: {
-    borderColor: '#e5e7eb',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     marginTop: 10,
     padding: 14,
   },
   unitItemSelected: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: palette.primary,
+    backgroundColor: '#ecfdf5',
   },
   unitTitle: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 17,
     fontWeight: '900',
   },
   unitMeta: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 14,
     marginTop: 4,
   },
   selectedTitle: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 24,
     fontWeight: '900',
   },
   privacy: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#fff7ed',
     borderRadius: 8,
-    color: '#374151',
+    color: '#7c2d12',
     fontSize: 14,
     lineHeight: 20,
     padding: 12,
   },
   divider: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: palette.line,
     height: 1,
     marginVertical: 4,
   },
@@ -1480,48 +1618,50 @@ const styles = StyleSheet.create({
   },
   inlineButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#ccfbf1',
     borderRadius: 8,
     marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   inlineButtonText: {
-    color: '#1d4ed8',
+    color: palette.primaryDark,
     fontSize: 14,
     fontWeight: '900',
   },
   historyItem: {
-    borderColor: '#e5e7eb',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     padding: 12,
   },
   pendingItem: {
+    backgroundColor: '#fffbeb',
     borderColor: '#fcd34d',
     borderRadius: 8,
     borderWidth: 1,
     padding: 12,
   },
   historyType: {
-    color: '#2563eb',
+    color: palette.blue,
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   historyTitle: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 4,
   },
   historyMeta: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 14,
     marginTop: 3,
   },
   subsectionTitle: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 15,
     fontWeight: '900',
     marginTop: 4,
@@ -1539,14 +1679,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   approveButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: palette.green,
   },
   successButton: {
-    backgroundColor: '#15803d',
+    backgroundColor: palette.green,
   },
   rejectButton: {
     backgroundColor: '#ffffff',
-    borderColor: '#ef4444',
+    borderColor: '#fecaca',
     borderWidth: 1,
   },
   decisionButtonText: {
@@ -1555,7 +1695,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   rejectButtonText: {
-    color: '#b91c1c',
+    color: palette.red,
     fontSize: 15,
     fontWeight: '900',
   },
@@ -1577,18 +1717,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   statBox: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.line,
+    borderWidth: 1,
     borderRadius: 8,
     flex: 1,
     padding: 12,
   },
   statValue: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 24,
     fontWeight: '900',
   },
   statLabel: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 13,
     marginTop: 2,
   },
@@ -1599,15 +1741,15 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   primaryButton: {
-    backgroundColor: '#111827',
+    backgroundColor: palette.primary,
   },
   secondaryButton: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d1d5db',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderWidth: 1,
   },
   warningButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: palette.amber,
   },
   primaryButtonText: {
     color: '#ffffff',
@@ -1615,12 +1757,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   secondaryButtonText: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 16,
     fontWeight: '900',
   },
   warningButtonText: {
-    color: '#111827',
+    color: palette.ink,
     fontSize: 16,
     fontWeight: '900',
   },
@@ -1629,8 +1771,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   chatBubble: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#e5e7eb',
+    backgroundColor: '#f8fafc',
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     padding: 12,

@@ -40,3 +40,4 @@ Empieza por:
 - [docs/07-panel-admin-web.md](docs/07-panel-admin-web.md)
 - [docs/08-whatsapp-kiosco-llamadas.md](docs/08-whatsapp-kiosco-llamadas.md)
 - [docs/09-app-residentes-y-produccion.md](docs/09-app-residentes-y-produccion.md)
+- [docs/10-diseno-visual-app.md](docs/10-diseno-visual-app.md)
