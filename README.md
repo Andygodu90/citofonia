@@ -1,6 +1,6 @@
 # Citofonia residencial Android
 
-Proyecto para construir una app Android de citofonia para un conjunto residencial.
+Proyecto para construir una app Android de citofonia y control de acceso para un conjunto residencial.
 
 La primera version se enfocara en el puesto de porteria:
 
@@ -31,4 +31,3 @@ Empieza por:
 - [docs/02-arquitectura.md](docs/02-arquitectura.md)
 - [docs/03-neon.md](docs/03-neon.md)
 - [docs/04-github.md](docs/04-github.md)
-
