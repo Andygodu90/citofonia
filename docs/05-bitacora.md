@@ -28,3 +28,5 @@
 - Se protegieron los endpoints de porteria con token Bearer.
 - Se agrego registro de visitantes desde porteria.
 - El registro de visitantes crea autorizacion y evento de acceso pendientes.
+- Se ajusto la seleccion de unidad para ocultar la lista despues de elegir un apartamento.
+- Se agrego historial reciente de porteria.

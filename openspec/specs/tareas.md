@@ -1,5 +1,3 @@
-
-
-- Requiero empezar a trabajar la APP pero antes quiero que prepares el entorno, revisando a instalando lo que sea necesario.
-- Indicame o si lo puedes hacer tu mucho mejor, como creo el repositorio directamente en Github y todo lo que sea necesario para trabajar el proyecto (Si necesitas credenciales a lo que sea, solo pidelo y me dices como te lo comparto).
-- Indicame por favor como crear la base de datos en NEON y que tablas debo crear tambien.
+- Antes de realizar cualquier acción requiero que revises lo siguiente:
+    Al filtrar solo el bloque, por ejemplo 31, aparece el listado completo de los apartamentos (Cosa que me parece bien) pero al seleccionar 1, sigue siendo visible el listado completo de los apartamentos y esto me parece mal porque al usuario le tocaría desplazarse al final para poder ver la información del Apartamento... entonces requiero que siga funcionando así pero que al seleccionar el apartamento o como tu lo llamas unidad, inmediatamente solo muestre la selección activa del apartamento y justo debajo la info, es decir, no siga mostrando el listado completo de los apartamento.
+- Justo despues de solucionar lo anterior, continúa con historial de portería

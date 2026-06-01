@@ -10,6 +10,7 @@ Crear el primer flujo funcional para que porteria pueda:
 4. Registrar un intento de llamada.
 5. Registrar un visitante con autorizacion pendiente.
 6. Guardar un mensaje interno de prueba.
+7. Consultar historial reciente de porteria.
 
 ## Usuario de prueba
 
@@ -79,6 +80,7 @@ GET  /api/porter/units/:id
 POST /api/porter/units/:id/calls
 POST /api/porter/units/:id/messages
 POST /api/porter/units/:id/visitors
+GET  /api/porter/history
 ```
 
 Los endpoints de porteria requieren:
@@ -111,6 +113,26 @@ porter.visitor.create
 ```
 
 La aprobacion o rechazo del residente se implementara en una fase posterior.
+
+## Historial de porteria
+
+El historial reciente combina:
+
+- Visitantes registrados.
+- Llamadas registradas.
+- Mensajes internos.
+
+El endpoint devuelve los ultimos 25 eventos ordenados por fecha descendente.
+
+## Ajuste de seleccion de unidad
+
+Cuando se busca por bloque, por ejemplo `31`, la app muestra la lista completa de apartamentos del bloque. Al seleccionar una unidad, la lista se oculta y queda visible solo la unidad activa con su informacion operativa debajo.
+
+Para volver a la lista o escoger otra unidad, usar el boton:
+
+```text
+Cambiar unidad
+```
 
 ## Probar backend
 

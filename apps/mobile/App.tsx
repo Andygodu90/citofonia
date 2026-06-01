@@ -44,6 +44,15 @@ type UserSession = {
   role: string;
 };
 
+type HistoryItem = {
+  id: string;
+  type: 'visitor' | 'call' | 'message';
+  title: string;
+  subtitle: string;
+  status: string;
+  occurredAt: string;
+};
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
@@ -51,7 +60,10 @@ export default function App() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [query, setQuery] = useState('31 1A');
   const [units, setUnits] = useState<UnitSearchResult[]>([]);
+  const [selectedSummary, setSelectedSummary] =
+    useState<UnitSearchResult | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitDetail | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
@@ -129,13 +141,17 @@ export default function App() {
   function logout() {
     setSession(null);
     setUnits([]);
+    setSelectedSummary(null);
     setSelectedUnit(null);
+    setHistoryItems([]);
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
   async function searchUnits() {
     setLoading(true);
+    setSelectedSummary(null);
     setSelectedUnit(null);
+    setHistoryItems([]);
     setNotice({ tone: 'info', text: 'Buscando unidades...' });
 
     try {
@@ -162,13 +178,15 @@ export default function App() {
     }
   }
 
-  async function loadUnit(unitId: string) {
+  async function loadUnit(unit: UnitSearchResult) {
     setLoading(true);
+    setSelectedSummary(unit);
+    setUnits([]);
     setNotice({ tone: 'info', text: 'Cargando detalle protegido...' });
 
     try {
       const data = await request<{ unit: UnitDetail }>(
-        `/api/porter/units/${unitId}`,
+        `/api/porter/units/${unit.id}`,
       );
       setSelectedUnit(data.unit);
       setNotice({
@@ -182,6 +200,41 @@ export default function App() {
           error instanceof Error
             ? error.message
             : 'Error cargando la unidad seleccionada.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function clearSelectedUnit() {
+    setSelectedSummary(null);
+    setSelectedUnit(null);
+    setHistoryItems([]);
+    setNotice({
+      tone: 'info',
+      text: 'Puedes buscar o seleccionar otra unidad.',
+    });
+  }
+
+  async function loadHistory() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando historial de porteria...' });
+
+    try {
+      const data = await request<{ items: HistoryItem[] }>('/api/porter/history');
+      setHistoryItems(data.items);
+      setNotice({
+        tone: 'success',
+        text:
+          data.items.length === 0
+            ? 'No hay historial reciente.'
+            : `Historial actualizado: ${data.items.length} evento(s).`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error cargando historial.',
       });
     } finally {
       setLoading(false);
@@ -349,7 +402,7 @@ export default function App() {
             <View>
               <Text style={styles.sessionLabel}>Sesion activa</Text>
               <Text style={styles.sessionUser}>
-                {session.username} · {session.role}
+                {session.username} - {session.role}
               </Text>
             </View>
             <Pressable onPress={logout} style={styles.logoutButton}>
@@ -384,24 +437,59 @@ export default function App() {
             <Text style={styles.noticeText}>{notice.text}</Text>
           </View>
 
-          <FlatList
-            data={units}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => loadUnit(item.id)}
-                style={[
-                  styles.unitItem,
-                  selectedUnit?.id === item.id && styles.unitItemSelected,
-                ]}
-              >
-                <Text style={styles.unitTitle}>{item.displayLabel}</Text>
-                <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
+          {selectedSummary ? (
+            <View style={[styles.unitItem, styles.unitItemSelected]}>
+              <Text style={styles.unitTitle}>{selectedSummary.displayLabel}</Text>
+              <Text style={styles.unitMeta}>{selectedSummary.privacyLabel}</Text>
+              <Pressable onPress={clearSelectedUnit} style={styles.inlineButton}>
+                <Text style={styles.inlineButtonText}>Cambiar unidad</Text>
               </Pressable>
-            )}
-            scrollEnabled={false}
-          />
+            </View>
+          ) : (
+            <FlatList
+              data={units}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => loadUnit(item)} style={styles.unitItem}>
+                  <Text style={styles.unitTitle}>{item.displayLabel}</Text>
+                  <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
+                </Pressable>
+              )}
+              scrollEnabled={false}
+            />
+          )}
         </View>
+        ) : null}
+
+        {session ? (
+          <View style={styles.panel}>
+            <View style={styles.panelHeaderRow}>
+              <Text style={styles.label}>Historial reciente</Text>
+              <Pressable
+                disabled={loading}
+                onPress={loadHistory}
+                style={styles.inlineButton}
+              >
+                <Text style={styles.inlineButtonText}>Actualizar</Text>
+              </Pressable>
+            </View>
+
+            {historyItems.length === 0 ? (
+              <Text style={styles.hint}>
+                Aun no has cargado el historial de porteria.
+              </Text>
+            ) : (
+              historyItems.map((item) => (
+                <View key={`${item.type}-${item.id}`} style={styles.historyItem}>
+                  <Text style={styles.historyType}>{item.type}</Text>
+                  <Text style={styles.historyTitle}>{item.title}</Text>
+                  <Text style={styles.historyMeta}>
+                    {item.subtitle} - {item.status}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
         ) : null}
 
         {session && selectedUnit ? (
@@ -546,6 +634,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
   },
+  panelHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   sessionBar: {
     alignItems: 'center',
     backgroundColor: '#111827',
@@ -655,6 +749,7 @@ const styles = StyleSheet.create({
   },
   unitItemSelected: {
     borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
   },
   unitTitle: {
     color: '#111827',
@@ -690,6 +785,42 @@ const styles = StyleSheet.create({
   },
   columnInput: {
     flex: 1,
+  },
+  inlineButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inlineButtonText: {
+    color: '#1d4ed8',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  historyItem: {
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
+  },
+  historyType: {
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  historyTitle: {
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  historyMeta: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginTop: 3,
   },
   statsRow: {
     flexDirection: 'row',
