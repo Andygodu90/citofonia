@@ -26,3 +26,5 @@
 - Se agrego login basico de porteria con token firmado.
 - Se creo usuario de prueba `porteria`.
 - Se protegieron los endpoints de porteria con token Bearer.
+- Se agrego registro de visitantes desde porteria.
+- El registro de visitantes crea autorizacion y evento de acceso pendientes.

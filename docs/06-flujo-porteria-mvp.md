@@ -8,7 +8,8 @@ Crear el primer flujo funcional para que porteria pueda:
 2. Buscar una unidad residencial.
 3. Ver informacion protegida.
 4. Registrar un intento de llamada.
-5. Guardar un mensaje interno de prueba.
+5. Registrar un visitante con autorizacion pendiente.
+6. Guardar un mensaje interno de prueba.
 
 ## Usuario de prueba
 
@@ -77,6 +78,7 @@ GET  /api/porter/units?query=31%201A
 GET  /api/porter/units/:id
 POST /api/porter/units/:id/calls
 POST /api/porter/units/:id/messages
+POST /api/porter/units/:id/visitors
 ```
 
 Los endpoints de porteria requieren:
@@ -84,6 +86,31 @@ Los endpoints de porteria requieren:
 ```text
 Authorization: Bearer TOKEN
 ```
+
+## Registro de visitantes
+
+El flujo actual permite registrar:
+
+- Nombre del visitante.
+- Documento.
+- Telefono.
+- Tipo de visitante.
+- Motivo de visita.
+- Unidad a visitar.
+
+Al registrar un visitante se crean tres registros:
+
+- `visitors`: datos del visitante.
+- `access_authorizations`: autorizacion inmediata en estado `pending`.
+- `access_events`: solicitud de ingreso en estado `pending`.
+
+Tambien se registra un evento de auditoria con accion:
+
+```text
+porter.visitor.create
+```
+
+La aprobacion o rechazo del residente se implementara en una fase posterior.
 
 ## Probar backend
 

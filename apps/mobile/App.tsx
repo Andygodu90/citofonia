@@ -55,6 +55,11 @@ export default function App() {
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
+  const [visitorName, setVisitorName] = useState('Visitante de prueba');
+  const [visitorDocument, setVisitorDocument] = useState('123456789');
+  const [visitorPhone, setVisitorPhone] = useState('3000000000');
+  const [visitorType, setVisitorType] = useState('invitado');
+  const [visitReason, setVisitReason] = useState('Visita familiar');
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     tone: 'info',
@@ -239,6 +244,46 @@ export default function App() {
     }
   }
 
+  async function registerVisitor() {
+    if (!selectedUnit) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Registrando visitante...' });
+
+    try {
+      const data = await request<{
+        message: string;
+        authorization: { status: string };
+      }>(`/api/porter/units/${selectedUnit.id}/visitors`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: visitorName,
+          documentId: visitorDocument,
+          phone: visitorPhone,
+          visitorType,
+          reason: visitReason,
+        }),
+      });
+
+      setNotice({
+        tone: 'success',
+        text: `${data.message} Estado: ${data.authorization.status}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error registrando visitante.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
@@ -388,6 +433,55 @@ export default function App() {
             >
               <Text style={styles.primaryButtonText}>Registrar llamada</Text>
             </Pressable>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.label}>Registro de visitante</Text>
+            <TextInput
+              onChangeText={setVisitorName}
+              placeholder="Nombre del visitante"
+              style={styles.input}
+              value={visitorName}
+            />
+            <TextInput
+              keyboardType="number-pad"
+              onChangeText={setVisitorDocument}
+              placeholder="Documento"
+              style={styles.input}
+              value={visitorDocument}
+            />
+            <TextInput
+              keyboardType="phone-pad"
+              onChangeText={setVisitorPhone}
+              placeholder="Telefono"
+              style={styles.input}
+              value={visitorPhone}
+            />
+            <View style={styles.twoColumns}>
+              <TextInput
+                onChangeText={setVisitorType}
+                placeholder="Tipo"
+                style={[styles.input, styles.columnInput]}
+                value={visitorType}
+              />
+              <TextInput
+                onChangeText={setVisitReason}
+                placeholder="Motivo"
+                style={[styles.input, styles.columnInput]}
+                value={visitReason}
+              />
+            </View>
+            <Pressable
+              disabled={loading}
+              onPress={registerVisitor}
+              style={[styles.button, styles.warningButton]}
+            >
+              <Text style={styles.warningButtonText}>
+                Registrar visitante pendiente
+              </Text>
+            </Pressable>
+
+            <View style={styles.divider} />
 
             <Text style={styles.label}>Mensaje interno</Text>
             <TextInput
@@ -585,6 +679,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     padding: 12,
   },
+  divider: {
+    backgroundColor: '#e5e7eb',
+    height: 1,
+    marginVertical: 4,
+  },
+  twoColumns: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  columnInput: {
+    flex: 1,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -619,12 +725,20 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
     borderWidth: 1,
   },
+  warningButton: {
+    backgroundColor: '#f59e0b',
+  },
   primaryButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '900',
   },
   secondaryButtonText: {
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  warningButtonText: {
     color: '#111827',
     fontSize: 16,
     fontWeight: '900',
