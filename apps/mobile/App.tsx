@@ -38,8 +38,17 @@ type Notice = {
   text: string;
 };
 
+type UserSession = {
+  token: string;
+  username: string;
+  role: string;
+};
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
+  const [username, setUsername] = useState('porteria');
+  const [password, setPassword] = useState('Porteria123*');
+  const [session, setSession] = useState<UserSession | null>(null);
   const [query, setQuery] = useState('31 1A');
   const [units, setUnits] = useState<UnitSearchResult[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<UnitDetail | null>(null);
@@ -59,6 +68,7 @@ export default function App() {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
         ...options?.headers,
       },
     });
@@ -70,6 +80,52 @@ export default function App() {
     }
 
     return data as T;
+  }
+
+  async function login() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Validando usuario de porteria...' });
+
+    try {
+      const response = await fetch(`${normalizedApiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'No se pudo iniciar sesion');
+      }
+
+      setSession({
+        token: data.token,
+        username: data.user.username,
+        role: data.user.role,
+      });
+      setNotice({
+        tone: 'success',
+        text: 'Sesion iniciada. Ya puedes buscar unidades.',
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error iniciando sesion.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function logout() {
+    setSession(null);
+    setUnits([]);
+    setSelectedUnit(null);
+    setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
   async function searchUnits() {
@@ -212,6 +268,52 @@ export default function App() {
           </Text>
         </View>
 
+        {!session ? (
+          <View style={styles.panel}>
+            <Text style={styles.label}>Ingreso de porteria</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setUsername}
+              placeholder="Usuario"
+              style={styles.input}
+              value={username}
+            />
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setPassword}
+              placeholder="Contrasena"
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+            <Pressable
+              disabled={loading}
+              onPress={login}
+              style={[styles.button, styles.primaryButton, loading && styles.disabledButton]}
+            >
+              <Text style={styles.primaryButtonText}>Ingresar</Text>
+            </Pressable>
+            <Text style={styles.hint}>
+              Usuario de prueba: porteria / Porteria123*
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.sessionBar}>
+            <View>
+              <Text style={styles.sessionLabel}>Sesion activa</Text>
+              <Text style={styles.sessionUser}>
+                {session.username} · {session.role}
+              </Text>
+            </View>
+            <Pressable onPress={logout} style={styles.logoutButton}>
+              <Text style={styles.logoutText}>Salir</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {session ? (
         <View style={styles.panel}>
           <Text style={styles.label}>Buscar unidad</Text>
           <View style={styles.searchRow}>
@@ -255,8 +357,9 @@ export default function App() {
             scrollEnabled={false}
           />
         </View>
+        ) : null}
 
-        {selectedUnit ? (
+        {session && selectedUnit ? (
           <View style={styles.panel}>
             <Text style={styles.label}>Unidad seleccionada</Text>
             <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
@@ -348,6 +451,38 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
     padding: 16,
+  },
+  sessionBar: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    padding: 16,
+  },
+  sessionLabel: {
+    color: '#d1d5db',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  sessionUser: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  logoutButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  logoutText: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '900',
   },
   label: {
     color: '#6b7280',

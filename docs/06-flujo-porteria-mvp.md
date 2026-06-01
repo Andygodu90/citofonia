@@ -4,10 +4,26 @@
 
 Crear el primer flujo funcional para que porteria pueda:
 
-1. Buscar una unidad residencial.
-2. Ver informacion protegida.
-3. Registrar un intento de llamada.
-4. Guardar un mensaje interno de prueba.
+1. Iniciar sesion como usuario de porteria.
+2. Buscar una unidad residencial.
+3. Ver informacion protegida.
+4. Registrar un intento de llamada.
+5. Guardar un mensaje interno de prueba.
+
+## Usuario de prueba
+
+```text
+Usuario: porteria
+Contrasena: Porteria123*
+Rol: porter
+```
+
+Este usuario se crea o actualiza con:
+
+```powershell
+cd apps/api
+npm.cmd run db:seed:porter
+```
 
 ## Datos de prueba
 
@@ -56,10 +72,17 @@ npm.cmd run db:check
 ## Endpoints creados
 
 ```text
+POST /api/auth/login
 GET  /api/porter/units?query=31%201A
 GET  /api/porter/units/:id
 POST /api/porter/units/:id/calls
 POST /api/porter/units/:id/messages
+```
+
+Los endpoints de porteria requieren:
+
+```text
+Authorization: Bearer TOKEN
 ```
 
 ## Probar backend
@@ -92,3 +115,13 @@ http://192.168.1.25:3000
 
 El celular y el computador deben estar en la misma red Wi-Fi.
 
+## Variables de entorno
+
+El backend requiere:
+
+```text
+DATABASE_URL
+AUTH_SECRET
+```
+
+`AUTH_SECRET` debe ser un texto largo y privado. En local ya fue generado en `.env.local`.

@@ -1,3 +1,4 @@
+import { auditEvent, requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -9,6 +10,12 @@ type Params = {
 };
 
 export async function POST(request: Request, { params }: Params) {
+  const session = await requirePorterSession(request);
+
+  if (!session) {
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     status?: string;
@@ -25,11 +32,14 @@ export async function POST(request: Request, { params }: Params) {
       join properties p on p.id = u.property_id
       join residents r on r.unit_id = u.id and r.is_active = true
       join resident_contacts c on c.resident_id = r.id and c.is_active = true and c.call_enabled = true
-      where u.id = $1 and u.is_active = true
+      where
+        u.id = $1
+        and u.is_active = true
+        and ($2::uuid is null or p.id = $2::uuid)
       order by c.priority asc
       limit 1
     `,
-    [id],
+    [id, session.propertyId],
   );
 
   if (contactResult.rowCount === 0) {
@@ -42,18 +52,31 @@ export async function POST(request: Request, { params }: Params) {
   const contact = contactResult.rows[0];
   const logResult = await db.query(
     `
-      insert into call_logs (property_id, unit_id, contact_id, status, notes)
-      values ($1, $2, $3, $4, $5)
+      insert into call_logs (property_id, unit_id, contact_id, initiated_by, status, notes)
+      values ($1, $2, $3, $4, $5, $6)
       returning id, status, started_at
     `,
     [
       contact.property_id,
       contact.unit_id,
       contact.contact_id,
+      session.userId,
       body.status ?? "initiated",
       body.notes ?? "Intento registrado desde app de porteria",
     ],
   );
+
+  await auditEvent({
+    propertyId: contact.property_id,
+    actorUserId: session.userId,
+    action: "porter.call.create",
+    entityType: "call_logs",
+    entityId: logResult.rows[0].id,
+    metadata: {
+      unitId: contact.unit_id,
+      status: logResult.rows[0].status,
+    },
+  });
 
   return Response.json({
     call: {

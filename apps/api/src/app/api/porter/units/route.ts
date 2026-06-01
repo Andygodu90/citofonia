@@ -1,9 +1,16 @@
 import { NextRequest } from "next/server";
+import { requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const session = await requirePorterSession(request);
+
+  if (!session) {
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const query = request.nextUrl.searchParams.get("query")?.trim() ?? "";
 
   const result = await db.query(
@@ -20,6 +27,7 @@ export async function GET(request: NextRequest) {
       left join residents r on r.unit_id = u.id and r.is_active = true
       where
         p.name = $1
+        and ($3::uuid is null or p.id = $3::uuid)
         and u.is_active = true
         and (
           $2 = ''
@@ -33,7 +41,7 @@ export async function GET(request: NextRequest) {
       order by u.tower::int, u.unit_number
       limit 30
     `,
-    ["Conjunto Residencial Arcadas de San Isidro", query],
+    ["Conjunto Residencial Arcadas de San Isidro", query, session.propertyId],
   );
 
   return Response.json({

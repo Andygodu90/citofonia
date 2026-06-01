@@ -1,3 +1,4 @@
+import { requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -8,7 +9,13 @@ type Params = {
   }>;
 };
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
+  const session = await requirePorterSession(request);
+
+  if (!session) {
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const { id } = await params;
 
   const unitResult = await db.query(
@@ -24,11 +31,14 @@ export async function GET(_request: Request, { params }: Params) {
       from residential_units u
       join properties p on p.id = u.property_id
       left join residents r on r.unit_id = u.id and r.is_active = true
-      where u.id = $1 and u.is_active = true
+      where
+        u.id = $1
+        and u.is_active = true
+        and ($2::uuid is null or p.id = $2::uuid)
       group by u.id, p.id
       limit 1
     `,
-    [id],
+    [id, session.propertyId],
   );
 
   if (unitResult.rowCount === 0) {
