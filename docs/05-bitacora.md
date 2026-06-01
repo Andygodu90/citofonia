@@ -31,3 +31,5 @@
 - Se ajusto la seleccion de unidad para ocultar la lista despues de elegir un apartamento.
 - Se agrego historial reciente de porteria.
 - Se convirtio el historial reciente en acordeon para abrir/cerrar el listado.
+- Se agrego panel de ingresos pendientes.
+- Se agregaron acciones para aprobar o rechazar autorizaciones desde porteria.

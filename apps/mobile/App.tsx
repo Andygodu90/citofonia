@@ -53,6 +53,16 @@ type HistoryItem = {
   occurredAt: string;
 };
 
+type PendingAuthorization = {
+  id: string;
+  visitorName: string;
+  visitorType: string;
+  unitLabel: string;
+  status: string;
+  createdAt: string;
+  notes: string | null;
+};
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
@@ -65,6 +75,10 @@ export default function App() {
   const [selectedUnit, setSelectedUnit] = useState<UnitDetail | null>(null);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [pendingAuthorizations, setPendingAuthorizations] = useState<
+    PendingAuthorization[]
+  >([]);
+  const [isPendingOpen, setIsPendingOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
@@ -146,6 +160,8 @@ export default function App() {
     setSelectedUnit(null);
     setHistoryItems([]);
     setIsHistoryOpen(false);
+    setPendingAuthorizations([]);
+    setIsPendingOpen(false);
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
@@ -155,6 +171,8 @@ export default function App() {
     setSelectedUnit(null);
     setHistoryItems([]);
     setIsHistoryOpen(false);
+    setPendingAuthorizations([]);
+    setIsPendingOpen(false);
     setNotice({ tone: 'info', text: 'Buscando unidades...' });
 
     try {
@@ -213,6 +231,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setPendingAuthorizations([]);
     setNotice({
       tone: 'info',
       text: 'Puedes buscar o seleccionar otra unidad.',
@@ -250,6 +269,78 @@ export default function App() {
 
     if (nextOpen && historyItems.length === 0) {
       await loadHistory();
+    }
+  }
+
+  async function loadPendingAuthorizations() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando ingresos pendientes...' });
+
+    try {
+      const data = await request<{ items: PendingAuthorization[] }>(
+        '/api/porter/authorizations',
+      );
+      setPendingAuthorizations(data.items);
+      setNotice({
+        tone: 'success',
+        text:
+          data.items.length === 0
+            ? 'No hay ingresos pendientes.'
+            : `Ingresos pendientes: ${data.items.length}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error cargando ingresos pendientes.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function togglePendingAuthorizations() {
+    const nextOpen = !isPendingOpen;
+    setIsPendingOpen(nextOpen);
+
+    if (nextOpen && pendingAuthorizations.length === 0) {
+      await loadPendingAuthorizations();
+    }
+  }
+
+  async function decideAuthorization(id: string, decision: 'approved' | 'rejected') {
+    setLoading(true);
+    setNotice({
+      tone: 'info',
+      text: decision === 'approved' ? 'Aprobando ingreso...' : 'Rechazando ingreso...',
+    });
+
+    try {
+      const data = await request<{ message: string }>(
+        `/api/porter/authorizations/${id}/decision`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ decision }),
+        },
+      );
+      setNotice({ tone: 'success', text: data.message });
+      await loadPendingAuthorizations();
+
+      if (isHistoryOpen) {
+        await loadHistory();
+      }
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error gestionando autorizacion.',
+      });
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -336,6 +427,10 @@ export default function App() {
         tone: 'success',
         text: `${data.message} Estado: ${data.authorization.status}.`,
       });
+
+      if (isPendingOpen) {
+        await loadPendingAuthorizations();
+      }
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -471,6 +566,69 @@ export default function App() {
             />
           )}
         </View>
+        ) : null}
+
+        {session ? (
+          <View style={styles.panel}>
+            <Pressable
+              onPress={togglePendingAuthorizations}
+              style={styles.accordionHeader}
+            >
+              <View>
+                <Text style={styles.label}>Ingresos pendientes</Text>
+                <Text style={styles.hint}>
+                  {isPendingOpen ? 'Toca para ocultar' : 'Toca para abrir'}
+                </Text>
+              </View>
+              <Text style={styles.accordionIcon}>
+                {isPendingOpen ? 'Cerrar' : 'Abrir'}
+              </Text>
+            </Pressable>
+
+            {isPendingOpen ? (
+              <View style={styles.accordionBody}>
+                <Pressable
+                  disabled={loading}
+                  onPress={loadPendingAuthorizations}
+                  style={styles.inlineButton}
+                >
+                  <Text style={styles.inlineButtonText}>Actualizar</Text>
+                </Pressable>
+
+                {pendingAuthorizations.length === 0 ? (
+                  <Text style={styles.hint}>
+                    No hay solicitudes pendientes por gestionar.
+                  </Text>
+                ) : (
+                  pendingAuthorizations.map((item) => (
+                    <View key={item.id} style={styles.pendingItem}>
+                      <Text style={styles.historyType}>pendiente</Text>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.unitLabel} - {item.visitorType}
+                      </Text>
+                      <View style={styles.decisionRow}>
+                        <Pressable
+                          disabled={loading}
+                          onPress={() => decideAuthorization(item.id, 'approved')}
+                          style={[styles.decisionButton, styles.approveButton]}
+                        >
+                          <Text style={styles.decisionButtonText}>Aprobar</Text>
+                        </Pressable>
+                        <Pressable
+                          disabled={loading}
+                          onPress={() => decideAuthorization(item.id, 'rejected')}
+                          style={[styles.decisionButton, styles.rejectButton]}
+                        >
+                          <Text style={styles.rejectButtonText}>Rechazar</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         {session ? (
@@ -841,6 +999,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
   },
+  pendingItem: {
+    borderColor: '#fcd34d',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
+  },
   historyType: {
     color: '#2563eb',
     fontSize: 12,
@@ -857,6 +1021,36 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
     marginTop: 3,
+  },
+  decisionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  decisionButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  approveButton: {
+    backgroundColor: '#16a34a',
+  },
+  rejectButton: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ef4444',
+    borderWidth: 1,
+  },
+  decisionButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  rejectButtonText: {
+    color: '#b91c1c',
+    fontSize: 15,
+    fontWeight: '900',
   },
   statsRow: {
     flexDirection: 'row',

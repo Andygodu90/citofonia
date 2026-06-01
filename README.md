@@ -7,6 +7,7 @@ La primera version se enfocara en el puesto de porteria:
 - Buscar unidades residenciales sin exponer nombres ni telefonos.
 - Iniciar sesion como usuario de porteria.
 - Registrar visitantes con autorizacion pendiente.
+- Aprobar o rechazar ingresos pendientes.
 - Consultar historial reciente de porteria.
 - Iniciar llamadas desde la app.
 - Manejar chat tipo WhatsApp dentro de la app usando WhatsApp Business Cloud API.
