@@ -64,6 +64,7 @@ export default function App() {
     useState<UnitSearchResult | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitDetail | null>(null);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
@@ -144,6 +145,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setIsHistoryOpen(false);
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
@@ -152,6 +154,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setIsHistoryOpen(false);
     setNotice({ tone: 'info', text: 'Buscando unidades...' });
 
     try {
@@ -238,6 +241,15 @@ export default function App() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleHistory() {
+    const nextOpen = !isHistoryOpen;
+    setIsHistoryOpen(nextOpen);
+
+    if (nextOpen && historyItems.length === 0) {
+      await loadHistory();
     }
   }
 
@@ -463,32 +475,48 @@ export default function App() {
 
         {session ? (
           <View style={styles.panel}>
-            <View style={styles.panelHeaderRow}>
-              <Text style={styles.label}>Historial reciente</Text>
-              <Pressable
-                disabled={loading}
-                onPress={loadHistory}
-                style={styles.inlineButton}
-              >
-                <Text style={styles.inlineButtonText}>Actualizar</Text>
-              </Pressable>
-            </View>
-
-            {historyItems.length === 0 ? (
-              <Text style={styles.hint}>
-                Aun no has cargado el historial de porteria.
+            <Pressable onPress={toggleHistory} style={styles.accordionHeader}>
+              <View>
+                <Text style={styles.label}>Historial reciente</Text>
+                <Text style={styles.hint}>
+                  {isHistoryOpen ? 'Toca para ocultar' : 'Toca para abrir'}
+                </Text>
+              </View>
+              <Text style={styles.accordionIcon}>
+                {isHistoryOpen ? 'Cerrar' : 'Abrir'}
               </Text>
-            ) : (
-              historyItems.map((item) => (
-                <View key={`${item.type}-${item.id}`} style={styles.historyItem}>
-                  <Text style={styles.historyType}>{item.type}</Text>
-                  <Text style={styles.historyTitle}>{item.title}</Text>
-                  <Text style={styles.historyMeta}>
-                    {item.subtitle} - {item.status}
+            </Pressable>
+
+            {isHistoryOpen ? (
+              <View style={styles.accordionBody}>
+                <Pressable
+                  disabled={loading}
+                  onPress={loadHistory}
+                  style={styles.inlineButton}
+                >
+                  <Text style={styles.inlineButtonText}>Actualizar</Text>
+                </Pressable>
+
+                {historyItems.length === 0 ? (
+                  <Text style={styles.hint}>
+                    Aun no hay historial reciente para mostrar.
                   </Text>
-                </View>
-              ))
-            )}
+                ) : (
+                  historyItems.map((item) => (
+                    <View
+                      key={`${item.type}-${item.id}`}
+                      style={styles.historyItem}
+                    >
+                      <Text style={styles.historyType}>{item.type}</Text>
+                      <Text style={styles.historyTitle}>{item.title}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.subtitle} - {item.status}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -634,11 +662,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
   },
-  panelHeaderRow: {
+  accordionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  accordionBody: {
+    gap: 10,
+  },
+  accordionIcon: {
+    color: '#1d4ed8',
+    fontSize: 14,
+    fontWeight: '900',
   },
   sessionBar: {
     alignItems: 'center',

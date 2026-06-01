@@ -124,6 +124,13 @@ El historial reciente combina:
 
 El endpoint devuelve los ultimos 25 eventos ordenados por fecha descendente.
 
+En la app movil el historial se muestra como acordeon:
+
+- Cerrado por defecto.
+- El usuario puede abrirlo cuando necesite revisar eventos.
+- El usuario puede cerrarlo para mantener limpia la pantalla de operacion.
+- Al abrirlo por primera vez, la app carga el historial reciente.
+
 ## Ajuste de seleccion de unidad
 
 Cuando se busca por bloque, por ejemplo `31`, la app muestra la lista completa de apartamentos del bloque. Al seleccionar una unidad, la lista se oculta y queda visible solo la unidad activa con su informacion operativa debajo.

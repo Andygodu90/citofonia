@@ -1,3 +1,2 @@
-- Antes de realizar cualquier acción requiero que revises lo siguiente:
-    Al filtrar solo el bloque, por ejemplo 31, aparece el listado completo de los apartamentos (Cosa que me parece bien) pero al seleccionar 1, sigue siendo visible el listado completo de los apartamentos y esto me parece mal porque al usuario le tocaría desplazarse al final para poder ver la información del Apartamento... entonces requiero que siga funcionando así pero que al seleccionar el apartamento o como tu lo llamas unidad, inmediatamente solo muestre la selección activa del apartamento y justo debajo la info, es decir, no siga mostrando el listado completo de los apartamento.
-- Justo despues de solucionar lo anterior, continúa con historial de portería
+﻿- El historial requiero que no sea un listado fijo completo, necesito que primero sea algo asi como un acordeon, que le de al usuario la posibilidad de abrir el listado del historial y cerrarlo o recogerlo, asi el usuario no visualiza todo el tiempo el listado completo.
+
