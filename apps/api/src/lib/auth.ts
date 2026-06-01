@@ -143,6 +143,22 @@ export async function requirePorterSession(request: Request) {
   return session;
 }
 
+export async function requireAdminSession(request: Request) {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    return null;
+  }
+
+  const session = verifyToken(token);
+
+  if (!session || !["admin", "superadmin"].includes(session.role)) {
+    return null;
+  }
+
+  return session;
+}
+
 export async function auditEvent(input: {
   propertyId?: string | null;
   actorUserId?: string | null;

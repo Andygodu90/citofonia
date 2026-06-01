@@ -1,0 +1,384 @@
+"use client";
+
+import { useState } from "react";
+
+type Summary = {
+  units: number;
+  residents: number;
+  users: number;
+  visitors: number;
+  pending: number;
+  inside: number;
+};
+
+type Unit = {
+  id: string;
+  display_label: string;
+  block: string;
+  unit_number: string;
+  residents: number;
+  contacts: number;
+};
+
+type Resident = {
+  id: string;
+  full_name: string;
+  document_id: string | null;
+  unit_label: string;
+  phone: string;
+};
+
+type User = {
+  id: string;
+  username: string;
+  role: string;
+  is_active: boolean;
+};
+
+export function AdminDashboard() {
+  const [apiToken, setApiToken] = useState("");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("Admin123*");
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [unitQuery, setUnitQuery] = useState("31");
+  const [residentQuery, setResidentQuery] = useState("");
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [residentName, setResidentName] = useState("");
+  const [residentDocument, setResidentDocument] = useState("");
+  const [residentPhone, setResidentPhone] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("Porteria123*");
+  const [newRole, setNewRole] = useState("porter");
+  const [message, setMessage] = useState("Inicia sesion para cargar el panel.");
+  const [loading, setLoading] = useState(false);
+
+  async function api<T>(path: string, options?: RequestInit): Promise<T> {
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+        ...options?.headers,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error ?? "No se pudo completar la solicitud");
+    }
+
+    return data as T;
+  }
+
+  async function login() {
+    setLoading(true);
+    setMessage("Validando administrador...");
+
+    try {
+      const data = await api<{ token: string }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      setApiToken(data.token);
+      setMessage("Sesion administrativa iniciada.");
+      await loadDashboard(data.token);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error iniciando sesion.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadDashboard(tokenOverride?: string) {
+    setLoading(true);
+
+    try {
+      const headers = {
+        Authorization: `Bearer ${tokenOverride ?? apiToken}`,
+      };
+      const [summaryData, unitsData, residentsData, usersData] = await Promise.all([
+        fetch("/api/admin/summary", { headers }).then((res) => res.json()),
+        fetch(`/api/admin/units?query=${encodeURIComponent(unitQuery)}`, {
+          headers,
+        }).then((res) => res.json()),
+        fetch(`/api/admin/residents?query=${encodeURIComponent(residentQuery)}`, {
+          headers,
+        }).then((res) => res.json()),
+        fetch("/api/admin/users", { headers }).then((res) => res.json()),
+      ]);
+
+      if (summaryData.error || unitsData.error || residentsData.error || usersData.error) {
+        throw new Error(
+          summaryData.error ?? unitsData.error ?? residentsData.error ?? usersData.error,
+        );
+      }
+
+      setSummary(summaryData.summary);
+      setUnits(unitsData.units);
+      setResidents(residentsData.residents);
+      setUsers(usersData.users);
+      setMessage("Panel actualizado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error cargando panel.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createResident() {
+    if (!selectedUnitId) {
+      setMessage("Selecciona una unidad desde el listado.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await api("/api/admin/residents", {
+        method: "POST",
+        body: JSON.stringify({
+          unitId: selectedUnitId,
+          fullName: residentName,
+          documentId: residentDocument,
+          phone: residentPhone,
+        }),
+      });
+      setResidentName("");
+      setResidentDocument("");
+      setResidentPhone("");
+      setMessage("Residente creado.");
+      await loadDashboard();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error creando residente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createUser() {
+    setLoading(true);
+
+    try {
+      await api("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: newUsername,
+          password: newPassword,
+          role: newRole,
+        }),
+      });
+      setNewUsername("");
+      setMessage("Usuario creado o actualizado.");
+      await loadDashboard();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error creando usuario.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
+      <section className="flex flex-col gap-3">
+        <p className="text-sm font-bold uppercase text-blue-700">Administracion</p>
+        <h1 className="text-3xl font-black text-zinc-950">
+          Arcadas de San Isidro
+        </h1>
+        <p className="text-zinc-600">
+          Gestion inicial de unidades, residentes y usuarios del sistema.
+        </p>
+      </section>
+
+      <section className="grid gap-3 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-4">
+        <input
+          className="rounded-md border border-zinc-300 px-3 py-2"
+          onChange={(event) => setUsername(event.target.value)}
+          placeholder="Usuario"
+          value={username}
+        />
+        <input
+          className="rounded-md border border-zinc-300 px-3 py-2"
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Contrasena"
+          type="password"
+          value={password}
+        />
+        <button
+          className="rounded-md bg-zinc-950 px-4 py-2 font-bold text-white"
+          disabled={loading}
+          onClick={login}
+        >
+          Ingresar
+        </button>
+        <button
+          className="rounded-md border border-zinc-300 px-4 py-2 font-bold"
+          disabled={loading || !apiToken}
+          onClick={() => loadDashboard()}
+        >
+          Actualizar
+        </button>
+        <p className="md:col-span-4 text-sm text-zinc-600">{message}</p>
+      </section>
+
+      {summary ? (
+        <section className="grid gap-3 md:grid-cols-6">
+          {Object.entries(summary).map(([key, value]) => (
+            <div
+              className="rounded-lg border border-zinc-200 bg-white p-4"
+              key={key}
+            >
+              <p className="text-xs font-bold uppercase text-zinc-500">{key}</p>
+              <p className="mt-1 text-2xl font-black text-zinc-950">{value}</p>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <div className="mb-3 flex gap-2">
+            <input
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2"
+              onChange={(event) => setUnitQuery(event.target.value)}
+              placeholder="Buscar unidad"
+              value={unitQuery}
+            />
+            <button
+              className="rounded-md bg-zinc-950 px-4 py-2 font-bold text-white"
+              disabled={loading || !apiToken}
+              onClick={() => loadDashboard()}
+            >
+              Buscar
+            </button>
+          </div>
+          <h2 className="mb-3 text-lg font-black">Unidades</h2>
+          <div className="flex max-h-96 flex-col gap-2 overflow-auto">
+            {units.map((unit) => (
+              <button
+                className={`rounded-md border p-3 text-left ${
+                  selectedUnitId === unit.id
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-zinc-200"
+                }`}
+                key={unit.id}
+                onClick={() => setSelectedUnitId(unit.id)}
+              >
+                <p className="font-black">{unit.display_label}</p>
+                <p className="text-sm text-zinc-600">
+                  Residentes: {unit.residents} - Contactos: {unit.contacts}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <h2 className="mb-3 text-lg font-black">Crear residente</h2>
+          <div className="grid gap-3">
+            <input
+              className="rounded-md border border-zinc-300 px-3 py-2"
+              onChange={(event) => setResidentName(event.target.value)}
+              placeholder="Nombre completo"
+              value={residentName}
+            />
+            <input
+              className="rounded-md border border-zinc-300 px-3 py-2"
+              onChange={(event) => setResidentDocument(event.target.value)}
+              placeholder="Documento"
+              value={residentDocument}
+            />
+            <input
+              className="rounded-md border border-zinc-300 px-3 py-2"
+              onChange={(event) => setResidentPhone(event.target.value)}
+              placeholder="Telefono"
+              value={residentPhone}
+            />
+            <button
+              className="rounded-md bg-amber-500 px-4 py-2 font-black text-zinc-950"
+              disabled={loading || !apiToken}
+              onClick={createResident}
+            >
+              Crear residente en unidad seleccionada
+            </button>
+          </div>
+
+          <div className="mt-6">
+            <div className="mb-3 flex gap-2">
+              <input
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2"
+                onChange={(event) => setResidentQuery(event.target.value)}
+                placeholder="Buscar residente"
+                value={residentQuery}
+              />
+              <button
+                className="rounded-md border border-zinc-300 px-4 py-2 font-bold"
+                disabled={loading || !apiToken}
+                onClick={() => loadDashboard()}
+              >
+                Buscar
+              </button>
+            </div>
+            <div className="flex max-h-72 flex-col gap-2 overflow-auto">
+              {residents.map((resident) => (
+                <div className="rounded-md border border-zinc-200 p-3" key={resident.id}>
+                  <p className="font-black">{resident.full_name}</p>
+                  <p className="text-sm text-zinc-600">
+                    {resident.unit_label} - {resident.document_id ?? "sin documento"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <h2 className="mb-3 text-lg font-black">Usuarios</h2>
+        <div className="grid gap-3 md:grid-cols-4">
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setNewUsername(event.target.value)}
+            placeholder="Nuevo usuario"
+            value={newUsername}
+          />
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setNewPassword(event.target.value)}
+            placeholder="Contrasena"
+            value={newPassword}
+          />
+          <select
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setNewRole(event.target.value)}
+            value={newRole}
+          >
+            <option value="porter">Porteria</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <button
+            className="rounded-md bg-zinc-950 px-4 py-2 font-bold text-white"
+            disabled={loading || !apiToken}
+            onClick={createUser}
+          >
+            Crear usuario
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {users.map((user) => (
+            <div className="rounded-md border border-zinc-200 p-3" key={user.id}>
+              <p className="font-black">{user.username}</p>
+              <p className="text-sm text-zinc-600">
+                {user.role} - {user.is_active ? "activo" : "inactivo"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}

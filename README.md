@@ -8,6 +8,7 @@ La primera version se enfocara en el puesto de porteria:
 - Iniciar sesion como usuario de porteria.
 - Registrar visitantes con autorizacion pendiente.
 - Aprobar o rechazar ingresos pendientes.
+- Registrar entrada y salida de visitantes.
 - Consultar historial reciente de porteria.
 - Iniciar llamadas desde la app.
 - Manejar chat tipo WhatsApp dentro de la app usando WhatsApp Business Cloud API.
@@ -36,3 +37,4 @@ Empieza por:
 - [docs/03-neon.md](docs/03-neon.md)
 - [docs/04-github.md](docs/04-github.md)
 - [docs/06-flujo-porteria-mvp.md](docs/06-flujo-porteria-mvp.md)
+- [docs/07-panel-admin-web.md](docs/07-panel-admin-web.md)

@@ -208,7 +208,7 @@ Criterio de finalizacion:
 - Porteria puede consultar ingresos abiertos.
 
 Estado:
-Pendiente.
+Avanzado.
 
 ## Bloque 9 - Panel administrativo web
 
@@ -233,7 +233,7 @@ Criterio de finalizacion:
 - Porteria no puede acceder a funciones administrativas.
 
 Estado:
-Pendiente.
+Avanzado.
 
 ## Bloque 10 - Reportes y auditoria
 
@@ -387,12 +387,11 @@ Continuo.
 
 ## Orden sugerido de trabajo
 
-1. Bloque 8 - Flujo completo de ingreso y salida.
-2. Bloque 7 - Mejorar historial con filtros por unidad y estado.
-3. Bloque 9 - Panel administrativo web.
-4. Bloque 10 - Reportes y auditoria.
-5. Bloque 11 - WhatsApp Business Cloud API.
-6. Bloque 12 - Modo kiosco Android.
-7. Bloque 13 - Llamadas reales.
-8. Bloque 14 - App de residentes.
-9. Bloque 15 - Calidad y produccion.
+1. Bloque 7 - Mejorar historial con filtros por unidad y estado.
+2. Bloque 9 - Ampliar panel administrativo con edicion y desactivacion.
+3. Bloque 10 - Reportes y auditoria.
+4. Bloque 11 - WhatsApp Business Cloud API.
+5. Bloque 12 - Modo kiosco Android.
+6. Bloque 13 - Llamadas reales.
+7. Bloque 14 - App de residentes.
+8. Bloque 15 - Calidad y produccion.

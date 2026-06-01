@@ -46,11 +46,23 @@ type UserSession = {
 
 type HistoryItem = {
   id: string;
-  type: 'visitor' | 'call' | 'message';
+  type: 'visitor' | 'call' | 'message' | 'entry' | 'exit';
   title: string;
   subtitle: string;
   status: string;
   occurredAt: string;
+};
+
+type MovementItem = {
+  authorizationId: string;
+  visitorName: string;
+  visitorType: string;
+  unitLabel: string;
+};
+
+type MovementsState = {
+  pendingEntry: MovementItem[];
+  pendingExit: MovementItem[];
 };
 
 type PendingAuthorization = {
@@ -79,6 +91,11 @@ export default function App() {
     PendingAuthorization[]
   >([]);
   const [isPendingOpen, setIsPendingOpen] = useState(false);
+  const [movements, setMovements] = useState<MovementsState>({
+    pendingEntry: [],
+    pendingExit: [],
+  });
+  const [isMovementsOpen, setIsMovementsOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
@@ -162,6 +179,8 @@ export default function App() {
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
     setIsPendingOpen(false);
+    setMovements({ pendingEntry: [], pendingExit: [] });
+    setIsMovementsOpen(false);
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
@@ -173,6 +192,8 @@ export default function App() {
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
     setIsPendingOpen(false);
+    setMovements({ pendingEntry: [], pendingExit: [] });
+    setIsMovementsOpen(false);
     setNotice({ tone: 'info', text: 'Buscando unidades...' });
 
     try {
@@ -232,6 +253,7 @@ export default function App() {
     setSelectedUnit(null);
     setHistoryItems([]);
     setPendingAuthorizations([]);
+    setMovements({ pendingEntry: [], pendingExit: [] });
     setNotice({
       tone: 'info',
       text: 'Puedes buscar o seleccionar otra unidad.',
@@ -328,6 +350,10 @@ export default function App() {
       setNotice({ tone: 'success', text: data.message });
       await loadPendingAuthorizations();
 
+      if (isMovementsOpen) {
+        await loadMovements();
+      }
+
       if (isHistoryOpen) {
         await loadHistory();
       }
@@ -338,6 +364,80 @@ export default function App() {
           error instanceof Error
             ? error.message
             : 'Error gestionando autorizacion.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMovements() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando entradas y salidas...' });
+
+    try {
+      const data = await request<MovementsState>('/api/porter/movements');
+      setMovements(data);
+      setNotice({
+        tone: 'success',
+        text: `Por entrar: ${data.pendingEntry.length}. Por salir: ${data.pendingExit.length}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error cargando movimientos.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleMovements() {
+    const nextOpen = !isMovementsOpen;
+    setIsMovementsOpen(nextOpen);
+
+    if (
+      nextOpen &&
+      movements.pendingEntry.length === 0 &&
+      movements.pendingExit.length === 0
+    ) {
+      await loadMovements();
+    }
+  }
+
+  async function registerMovement(
+    authorizationId: string,
+    movement: 'entry' | 'exit',
+  ) {
+    setLoading(true);
+    setNotice({
+      tone: 'info',
+      text: movement === 'entry' ? 'Registrando entrada...' : 'Registrando salida...',
+    });
+
+    try {
+      const data = await request<{ message: string }>(
+        `/api/porter/movements/${authorizationId}/${movement}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({}),
+        },
+      );
+      setNotice({ tone: 'success', text: data.message });
+      await loadMovements();
+
+      if (isHistoryOpen) {
+        await loadHistory();
+      }
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error registrando movimiento.',
       });
     } finally {
       setLoading(false);
@@ -566,6 +666,76 @@ export default function App() {
             />
           )}
         </View>
+        ) : null}
+
+        {session ? (
+          <View style={styles.panel}>
+            <Pressable onPress={toggleMovements} style={styles.accordionHeader}>
+              <View>
+                <Text style={styles.label}>Entradas y salidas</Text>
+                <Text style={styles.hint}>
+                  {isMovementsOpen ? 'Toca para ocultar' : 'Toca para abrir'}
+                </Text>
+              </View>
+              <Text style={styles.accordionIcon}>
+                {isMovementsOpen ? 'Cerrar' : 'Abrir'}
+              </Text>
+            </Pressable>
+
+            {isMovementsOpen ? (
+              <View style={styles.accordionBody}>
+                <Pressable
+                  disabled={loading}
+                  onPress={loadMovements}
+                  style={styles.inlineButton}
+                >
+                  <Text style={styles.inlineButtonText}>Actualizar</Text>
+                </Pressable>
+
+                <Text style={styles.subsectionTitle}>Aprobados por entrar</Text>
+                {movements.pendingEntry.length === 0 ? (
+                  <Text style={styles.hint}>No hay visitantes pendientes de entrada.</Text>
+                ) : (
+                  movements.pendingEntry.map((item) => (
+                    <View key={`entry-${item.authorizationId}`} style={styles.pendingItem}>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.unitLabel} - {item.visitorType}
+                      </Text>
+                      <Pressable
+                        disabled={loading}
+                        onPress={() => registerMovement(item.authorizationId, 'entry')}
+                        style={[styles.decisionButton, styles.approveButton]}
+                      >
+                        <Text style={styles.decisionButtonText}>Registrar entrada</Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <Text style={styles.subsectionTitle}>Ingresados por salir</Text>
+                {movements.pendingExit.length === 0 ? (
+                  <Text style={styles.hint}>No hay visitantes pendientes de salida.</Text>
+                ) : (
+                  movements.pendingExit.map((item) => (
+                    <View key={`exit-${item.authorizationId}`} style={styles.historyItem}>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.unitLabel} - {item.visitorType}
+                      </Text>
+                      <Pressable
+                        disabled={loading}
+                        onPress={() => registerMovement(item.authorizationId, 'exit')}
+                        style={[styles.decisionButton, styles.rejectButton]}
+                      >
+                        <Text style={styles.rejectButtonText}>Registrar salida</Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         {session ? (
@@ -1021,6 +1191,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
     marginTop: 3,
+  },
+  subsectionTitle: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 4,
   },
   decisionRow: {
     flexDirection: 'row',

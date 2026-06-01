@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 type HistoryRow = {
   id: string;
-  type: "visitor" | "call" | "message";
+  type: "visitor" | "call" | "message" | "entry" | "exit";
   title: string;
   subtitle: string;
   status: string;
@@ -35,6 +35,25 @@ export async function GET(request: Request) {
         join visitors v on v.id = ae.visitor_id
         where
           ae.event_type = 'entry_request'
+          and ($1::uuid is null or ae.property_id = $1::uuid)
+
+        union all
+
+        select
+          ae.id,
+          ae.event_type as type,
+          case
+            when ae.event_type = 'entry' then 'Entrada registrada'
+            else 'Salida registrada'
+          end as title,
+          u.display_label || ' - ' || v.full_name as subtitle,
+          ae.status,
+          ae.occurred_at
+        from access_events ae
+        join residential_units u on u.id = ae.unit_id
+        join visitors v on v.id = ae.visitor_id
+        where
+          ae.event_type in ('entry', 'exit')
           and ($1::uuid is null or ae.property_id = $1::uuid)
 
         union all

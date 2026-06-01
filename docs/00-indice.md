@@ -8,6 +8,7 @@
 - [Git y GitHub](04-github.md)
 - [Bitacora](05-bitacora.md)
 - [Flujo MVP de porteria](06-flujo-porteria-mvp.md)
+- [Panel administrativo web](07-panel-admin-web.md)
 
 ## Relacion con OpenSpec
 

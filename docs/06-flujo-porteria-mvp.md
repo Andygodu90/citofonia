@@ -10,8 +10,10 @@ Crear el primer flujo funcional para que porteria pueda:
 4. Registrar un intento de llamada.
 5. Registrar un visitante con autorizacion pendiente.
 6. Aprobar o rechazar ingresos pendientes.
-7. Guardar un mensaje interno de prueba.
-8. Consultar historial reciente de porteria.
+7. Registrar entrada efectiva.
+8. Registrar salida.
+9. Guardar un mensaje interno de prueba.
+10. Consultar historial reciente de porteria.
 
 ## Usuario de prueba
 
@@ -84,6 +86,9 @@ POST /api/porter/units/:id/visitors
 GET  /api/porter/history
 GET  /api/porter/authorizations
 POST /api/porter/authorizations/:id/decision
+GET  /api/porter/movements
+POST /api/porter/movements/:id/entry
+POST /api/porter/movements/:id/exit
 ```
 
 Los endpoints de porteria requieren:
@@ -141,6 +146,26 @@ rejected
 ```
 
 En esta etapa la decision se hace desde porteria. En una fase posterior se conectara con respuesta del residente por WhatsApp Business o app de residente.
+
+## Entradas y salidas
+
+La app incluye un acordeon de entradas y salidas.
+
+Desde este panel porteria puede:
+
+- Ver visitantes aprobados pendientes de entrada.
+- Registrar entrada efectiva.
+- Ver visitantes que ingresaron y no han salido.
+- Registrar salida.
+
+Estados principales del flujo:
+
+```text
+pending -> approved -> entered -> completed
+pending -> rejected
+```
+
+Cada entrada y salida crea un registro en `access_events` y un evento de auditoria.
 
 ## Historial de porteria
 

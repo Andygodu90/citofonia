@@ -33,3 +33,6 @@
 - Se convirtio el historial reciente en acordeon para abrir/cerrar el listado.
 - Se agrego panel de ingresos pendientes.
 - Se agregaron acciones para aprobar o rechazar autorizaciones desde porteria.
+- Se agrego flujo completo de entrada y salida.
+- Se agrego panel administrativo web en `/admin`.
+- Se agregaron endpoints administrativos para resumen, unidades, residentes y usuarios.
