@@ -75,6 +75,13 @@ type PendingAuthorization = {
   notes: string | null;
 };
 
+type ChatHistoryItem = {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  body: string;
+  sentAt: string;
+};
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
@@ -99,6 +106,7 @@ export default function App() {
   const [chatMessage, setChatMessage] = useState(
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [visitorName, setVisitorName] = useState('Visitante de prueba');
   const [visitorDocument, setVisitorDocument] = useState('123456789');
   const [visitorPhone, setVisitorPhone] = useState('3000000000');
@@ -176,6 +184,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setChatHistory([]);
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
     setIsPendingOpen(false);
@@ -189,6 +198,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setChatHistory([]);
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
     setIsPendingOpen(false);
@@ -252,6 +262,7 @@ export default function App() {
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
+    setChatHistory([]);
     setPendingAuthorizations([]);
     setMovements({ pendingEntry: [], pendingExit: [] });
     setNotice({
@@ -444,23 +455,32 @@ export default function App() {
     }
   }
 
-  async function registerCall() {
+  async function registerCall(
+    status: 'initiated' | 'answered' | 'no_answer' | 'rejected',
+  ) {
     if (!selectedUnit) {
       return;
     }
 
     setLoading(true);
-    setNotice({ tone: 'info', text: 'Registrando intento de llamada...' });
+    setNotice({ tone: 'info', text: 'Registrando llamada protegida...' });
 
     try {
       const data = await request<{
         call: { status: string; message: string };
       }>(`/api/porter/units/${selectedUnit.id}/calls`, {
         method: 'POST',
-        body: JSON.stringify({ status: 'initiated' }),
+        body: JSON.stringify({
+          status,
+          notes: 'Registro manual desde app de porteria. Numero protegido.',
+        }),
       });
 
       setNotice({ tone: 'success', text: data.call.message });
+
+      if (isHistoryOpen) {
+        await loadHistory();
+      }
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -489,11 +509,43 @@ export default function App() {
       });
 
       setNotice({ tone: 'success', text: data.thread.message });
+      await loadChatHistory();
     } catch (error) {
       setNotice({
         tone: 'error',
         text:
           error instanceof Error ? error.message : 'Error guardando mensaje.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadChatHistory() {
+    if (!selectedUnit) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando chat protegido...' });
+
+    try {
+      const data = await request<{ messages: ChatHistoryItem[] }>(
+        `/api/porter/units/${selectedUnit.id}/messages`,
+      );
+      setChatHistory(data.messages);
+      setNotice({
+        tone: 'success',
+        text:
+          data.messages.length === 0
+            ? 'No hay mensajes para esta unidad.'
+            : `Chat cargado: ${data.messages.length} mensaje(s).`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error cargando chat.',
       });
     } finally {
       setLoading(false);
@@ -870,13 +922,36 @@ export default function App() {
               </View>
             </View>
 
-            <Pressable
-              disabled={loading || !selectedUnit.canCall}
-              onPress={registerCall}
-              style={[styles.button, styles.primaryButton]}
-            >
-              <Text style={styles.primaryButtonText}>Registrar llamada</Text>
-            </Pressable>
+            <View style={styles.callGrid}>
+              <Pressable
+                disabled={loading || !selectedUnit.canCall}
+                onPress={() => registerCall('initiated')}
+                style={[styles.callButton, styles.primaryButton]}
+              >
+                <Text style={styles.primaryButtonText}>Iniciada</Text>
+              </Pressable>
+              <Pressable
+                disabled={loading || !selectedUnit.canCall}
+                onPress={() => registerCall('answered')}
+                style={[styles.callButton, styles.successButton]}
+              >
+                <Text style={styles.primaryButtonText}>Contestada</Text>
+              </Pressable>
+              <Pressable
+                disabled={loading || !selectedUnit.canCall}
+                onPress={() => registerCall('no_answer')}
+                style={[styles.callButton, styles.secondaryButton]}
+              >
+                <Text style={styles.secondaryButtonText}>No contesta</Text>
+              </Pressable>
+              <Pressable
+                disabled={loading || !selectedUnit.canCall}
+                onPress={() => registerCall('rejected')}
+                style={[styles.callButton, styles.rejectButton]}
+              >
+                <Text style={styles.rejectButtonText}>Rechazada</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.divider} />
 
@@ -941,9 +1016,24 @@ export default function App() {
               style={[styles.button, styles.secondaryButton]}
             >
               <Text style={styles.secondaryButtonText}>
-                Guardar chat de prueba
+                Enviar o guardar mensaje
               </Text>
             </Pressable>
+
+            <Pressable
+              disabled={loading || !selectedUnit.canChat}
+              onPress={loadChatHistory}
+              style={styles.inlineButton}
+            >
+              <Text style={styles.inlineButtonText}>Cargar chat</Text>
+            </Pressable>
+
+            {chatHistory.map((item) => (
+              <View key={item.id} style={styles.chatBubble}>
+                <Text style={styles.historyType}>{item.direction}</Text>
+                <Text style={styles.historyTitle}>{item.body}</Text>
+              </View>
+            ))}
           </View>
         ) : null}
       </ScrollView>
@@ -1213,6 +1303,9 @@ const styles = StyleSheet.create({
   approveButton: {
     backgroundColor: '#16a34a',
   },
+  successButton: {
+    backgroundColor: '#15803d',
+  },
   rejectButton: {
     backgroundColor: '#ffffff',
     borderColor: '#ef4444',
@@ -1231,6 +1324,19 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  callGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  callButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: '47%',
+    paddingHorizontal: 10,
   },
   statBox: {
     backgroundColor: '#f9fafb',
@@ -1283,5 +1389,12 @@ const styles = StyleSheet.create({
   messageInput: {
     minHeight: 94,
     textAlignVertical: 'top',
+  },
+  chatBubble: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
   },
 });

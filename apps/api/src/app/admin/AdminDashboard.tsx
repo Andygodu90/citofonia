@@ -35,6 +35,36 @@ type User = {
   is_active: boolean;
 };
 
+type ReportSummary = {
+  visit_requests: number;
+  approved: number;
+  rejected: number;
+  inside: number;
+  entries: number;
+  exits: number;
+  calls: number;
+  answered: number;
+  missed: number;
+};
+
+type ReportRow = {
+  id: string;
+  type: string;
+  title: string;
+  unitLabel: string | null;
+  status: string;
+  actor: string | null;
+  occurredAt: string;
+};
+
+type AuditItem = {
+  id: string;
+  action: string;
+  entityType: string | null;
+  actor: string | null;
+  createdAt: string;
+};
+
 export function AdminDashboard() {
   const [apiToken, setApiToken] = useState("");
   const [username, setUsername] = useState("admin");
@@ -43,8 +73,14 @@ export function AdminDashboard() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [residents, setResidents] = useState<Resident[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null);
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [auditItems, setAuditItems] = useState<AuditItem[]>([]);
   const [unitQuery, setUnitQuery] = useState("31");
   const [residentQuery, setResidentQuery] = useState("");
+  const [reportUnitQuery, setReportUnitQuery] = useState("");
+  const [reportStatus, setReportStatus] = useState("");
+  const [auditAction, setAuditAction] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState("");
   const [residentName, setResidentName] = useState("");
   const [residentDocument, setResidentDocument] = useState("");
@@ -100,7 +136,19 @@ export function AdminDashboard() {
       const headers = {
         Authorization: `Bearer ${tokenOverride ?? apiToken}`,
       };
-      const [summaryData, unitsData, residentsData, usersData] = await Promise.all([
+      const reportQuery = new URLSearchParams({
+        unit: reportUnitQuery,
+        status: reportStatus,
+      });
+      const auditQuery = new URLSearchParams({ action: auditAction });
+      const [
+        summaryData,
+        unitsData,
+        residentsData,
+        usersData,
+        reportsData,
+        auditData,
+      ] = await Promise.all([
         fetch("/api/admin/summary", { headers }).then((res) => res.json()),
         fetch(`/api/admin/units?query=${encodeURIComponent(unitQuery)}`, {
           headers,
@@ -109,11 +157,29 @@ export function AdminDashboard() {
           headers,
         }).then((res) => res.json()),
         fetch("/api/admin/users", { headers }).then((res) => res.json()),
+        fetch(`/api/admin/reports?${reportQuery.toString()}`, { headers }).then((res) =>
+          res.json(),
+        ),
+        fetch(`/api/admin/audit?${auditQuery.toString()}`, { headers }).then((res) =>
+          res.json(),
+        ),
       ]);
 
-      if (summaryData.error || unitsData.error || residentsData.error || usersData.error) {
+      if (
+        summaryData.error ||
+        unitsData.error ||
+        residentsData.error ||
+        usersData.error ||
+        reportsData.error ||
+        auditData.error
+      ) {
         throw new Error(
-          summaryData.error ?? unitsData.error ?? residentsData.error ?? usersData.error,
+          summaryData.error ??
+            unitsData.error ??
+            residentsData.error ??
+            usersData.error ??
+            reportsData.error ??
+            auditData.error,
         );
       }
 
@@ -121,6 +187,9 @@ export function AdminDashboard() {
       setUnits(unitsData.units);
       setResidents(residentsData.residents);
       setUsers(usersData.users);
+      setReportSummary(reportsData.summary);
+      setReportRows(reportsData.rows);
+      setAuditItems(auditData.items);
       setMessage("Panel actualizado.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error cargando panel.");
@@ -377,6 +446,81 @@ export function AdminDashboard() {
               </p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <h2 className="mb-3 text-lg font-black">Reportes</h2>
+        <div className="mb-4 grid gap-3 md:grid-cols-4">
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setReportUnitQuery(event.target.value)}
+            placeholder="Filtrar unidad"
+            value={reportUnitQuery}
+          />
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setReportStatus(event.target.value)}
+            placeholder="Estado"
+            value={reportStatus}
+          />
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setAuditAction(event.target.value)}
+            placeholder="Accion auditada"
+            value={auditAction}
+          />
+          <button
+            className="rounded-md bg-zinc-950 px-4 py-2 font-bold text-white"
+            disabled={loading || !apiToken}
+            onClick={() => loadDashboard()}
+          >
+            Consultar
+          </button>
+        </div>
+
+        {reportSummary ? (
+          <div className="mb-4 grid gap-2 md:grid-cols-5">
+            {Object.entries(reportSummary).map(([key, value]) => (
+              <div className="rounded-md bg-zinc-50 p-3" key={key}>
+                <p className="text-xs font-bold uppercase text-zinc-500">{key}</p>
+                <p className="text-xl font-black">{value}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <h3 className="mb-2 font-black">Actividad operativa</h3>
+            <div className="flex max-h-96 flex-col gap-2 overflow-auto">
+              {reportRows.map((row) => (
+                <div className="rounded-md border border-zinc-200 p-3" key={row.id}>
+                  <p className="text-xs font-bold uppercase text-blue-700">
+                    {row.type} - {row.status}
+                  </p>
+                  <p className="font-black">{row.title}</p>
+                  <p className="text-sm text-zinc-600">
+                    {row.unitLabel ?? "Sin unidad"} - {row.actor ?? "Sistema"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 font-black">Auditoria reciente</h3>
+            <div className="flex max-h-96 flex-col gap-2 overflow-auto">
+              {auditItems.map((item) => (
+                <div className="rounded-md border border-zinc-200 p-3" key={item.id}>
+                  <p className="font-black">{item.action}</p>
+                  <p className="text-sm text-zinc-600">
+                    {item.entityType ?? "sistema"} - {item.actor ?? "Sistema"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </main>

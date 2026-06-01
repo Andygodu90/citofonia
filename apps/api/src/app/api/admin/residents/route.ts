@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/auth";
+import { auditEvent, requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -107,6 +107,18 @@ export async function POST(request: Request) {
     }
 
     await client.query("commit");
+
+    await auditEvent({
+      propertyId: session.propertyId,
+      actorUserId: session.userId,
+      action: "admin.resident.create",
+      entityType: "residents",
+      entityId: resident.rows[0].id,
+      metadata: {
+        unitId: body.unitId,
+        hasPhone: Boolean(body.phone?.trim()),
+      },
+    });
 
     return Response.json({ resident: resident.rows[0] });
   } catch (error) {

@@ -36,3 +36,8 @@
 - Se agrego flujo completo de entrada y salida.
 - Se agrego panel administrativo web en `/admin`.
 - Se agregaron endpoints administrativos para resumen, unidades, residentes y usuarios.
+- Se agregaron reportes administrativos y auditoria reciente.
+- Se preparo envio por WhatsApp Cloud API con modo simulacion local.
+- Se agrego webhook base de WhatsApp para verificacion y mensajes entrantes.
+- Se documento la ruta tecnica para modo kiosco Android fuera de Expo Go.
+- Se amplio el registro de llamadas con estados operativos.

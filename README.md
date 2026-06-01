@@ -38,3 +38,4 @@ Empieza por:
 - [docs/04-github.md](docs/04-github.md)
 - [docs/06-flujo-porteria-mvp.md](docs/06-flujo-porteria-mvp.md)
 - [docs/07-panel-admin-web.md](docs/07-panel-admin-web.md)
+- [docs/08-whatsapp-kiosco-llamadas.md](docs/08-whatsapp-kiosco-llamadas.md)

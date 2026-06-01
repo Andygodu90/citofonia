@@ -1,4 +1,4 @@
-import { hashPassword, requireAdminSession } from "@/lib/auth";
+import { auditEvent, hashPassword, requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -62,6 +62,18 @@ export async function POST(request: Request) {
     `,
     [session.propertyId, username, hashPassword(password), role],
   );
+
+  await auditEvent({
+    propertyId: session.propertyId,
+    actorUserId: session.userId,
+    action: "admin.user.upsert",
+    entityType: "app_users",
+    entityId: result.rows[0].id,
+    metadata: {
+      username,
+      role,
+    },
+  });
 
   return Response.json({ user: result.rows[0] });
 }

@@ -9,6 +9,7 @@
 - [Bitacora](05-bitacora.md)
 - [Flujo MVP de porteria](06-flujo-porteria-mvp.md)
 - [Panel administrativo web](07-panel-admin-web.md)
+- [WhatsApp, kiosco Android y llamadas](08-whatsapp-kiosco-llamadas.md)
 
 ## Relacion con OpenSpec
 

@@ -7,12 +7,12 @@ Crear el primer flujo funcional para que porteria pueda:
 1. Iniciar sesion como usuario de porteria.
 2. Buscar una unidad residencial.
 3. Ver informacion protegida.
-4. Registrar un intento de llamada.
+4. Registrar una llamada y su resultado operativo.
 5. Registrar un visitante con autorizacion pendiente.
 6. Aprobar o rechazar ingresos pendientes.
 7. Registrar entrada efectiva.
 8. Registrar salida.
-9. Guardar un mensaje interno de prueba.
+9. Enviar o guardar un mensaje tipo WhatsApp y consultar el chat.
 10. Consultar historial reciente de porteria.
 
 ## Usuario de prueba
@@ -81,6 +81,8 @@ POST /api/auth/login
 GET  /api/porter/units?query=31%201A
 GET  /api/porter/units/:id
 POST /api/porter/units/:id/calls
+PATCH /api/porter/calls/:id
+GET  /api/porter/units/:id/messages
 POST /api/porter/units/:id/messages
 POST /api/porter/units/:id/visitors
 GET  /api/porter/history
@@ -174,8 +176,23 @@ El historial reciente combina:
 - Visitantes registrados.
 - Llamadas registradas.
 - Mensajes internos.
+- Entradas y salidas.
 
 El endpoint devuelve los ultimos 25 eventos ordenados por fecha descendente.
+
+## Comunicacion
+
+La app permite registrar estados de llamada sin mostrar el numero real:
+
+```text
+initiated
+answered
+no_answer
+rejected
+failed
+```
+
+El chat se guarda en `whatsapp_threads` y `whatsapp_messages`. Si las credenciales de WhatsApp Cloud estan configuradas, el backend envia el mensaje real; si no, lo guarda en modo simulacion para desarrollo local.
 
 En la app movil el historial se muestra como acordeon:
 

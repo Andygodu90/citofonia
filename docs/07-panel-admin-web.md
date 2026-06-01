@@ -37,6 +37,14 @@ npm.cmd run db:seed:admin
 - Busqueda de residentes.
 - Listado de usuarios.
 - Creacion o actualizacion de usuarios de porteria y administracion.
+- Reportes operativos:
+  - solicitudes de visita
+  - aprobaciones
+  - rechazos
+  - entradas
+  - salidas
+  - llamadas
+- Auditoria reciente de acciones sensibles.
 
 ## Endpoints administrativos
 
@@ -47,6 +55,8 @@ GET  /api/admin/residents
 POST /api/admin/residents
 GET  /api/admin/users
 POST /api/admin/users
+GET  /api/admin/reports
+GET  /api/admin/audit
 ```
 
 Todos requieren:
@@ -58,4 +68,3 @@ Authorization: Bearer TOKEN_ADMIN
 ## Alcance de esta etapa
 
 Este panel cubre la administracion inicial del conjunto. Todavia no reemplaza un panel administrativo final completo, pero ya permite mantener usuarios y residentes sin editar la base de datos manualmente.
-

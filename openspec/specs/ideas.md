@@ -259,7 +259,7 @@ Criterio de finalizacion:
 - Los reportes ayudan a operar y auditar el conjunto.
 
 Estado:
-Pendiente.
+Avanzado.
 
 ## Bloque 11 - WhatsApp Business Cloud API
 
@@ -285,7 +285,7 @@ Criterio de finalizacion:
 - El celador no abre WhatsApp normal.
 
 Estado:
-Pendiente.
+Avanzado.
 
 ## Bloque 12 - Modo kiosco Android y dispositivo dedicado
 
@@ -309,7 +309,7 @@ Criterio de finalizacion:
 - Solo administradores pueden salir del modo restringido.
 
 Estado:
-Pendiente.
+Avanzado en documentacion tecnica. Requiere build Android propia para implementacion real.
 
 ## Bloque 13 - Llamadas reales con SIM o alternativa VoIP
 
@@ -333,7 +333,7 @@ Criterio de finalizacion:
 - Cada llamada queda registrada en historial.
 
 Estado:
-Pendiente.
+Avanzado en estrategia y trazabilidad. Requiere decision final SIM nativa o VoIP para llamada dentro de la app.
 
 ## Bloque 14 - App de residentes
 
@@ -387,11 +387,9 @@ Continuo.
 
 ## Orden sugerido de trabajo
 
-1. Bloque 7 - Mejorar historial con filtros por unidad y estado.
-2. Bloque 9 - Ampliar panel administrativo con edicion y desactivacion.
-3. Bloque 10 - Reportes y auditoria.
-4. Bloque 11 - WhatsApp Business Cloud API.
-5. Bloque 12 - Modo kiosco Android.
-6. Bloque 13 - Llamadas reales.
-7. Bloque 14 - App de residentes.
-8. Bloque 15 - Calidad y produccion.
+1. Bloque 14 - App de residentes.
+2. Bloque 15 - Calidad, pruebas y preparacion para produccion.
+3. Bloque 9 - Ampliar panel administrativo con edicion, desactivacion y carga masiva.
+4. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
+5. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
+6. Bloque 13 - Definir proveedor final de llamadas dentro de la app.

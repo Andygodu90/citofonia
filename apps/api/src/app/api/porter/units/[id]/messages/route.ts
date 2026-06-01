@@ -1,5 +1,6 @@
 import { auditEvent, requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendWhatsAppText } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,50 @@ type Params = {
     id: string;
   }>;
 };
+
+export async function GET(request: Request, { params }: Params) {
+  const session = await requirePorterSession(request);
+
+  if (!session) {
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const result = await db.query(
+    `
+      select
+        wm.id,
+        wt.id as thread_id,
+        wm.direction,
+        wm.body,
+        wm.sent_at,
+        wm.delivered_at,
+        wm.read_at
+      from whatsapp_threads wt
+      join whatsapp_messages wm on wm.thread_id = wt.id
+      join residential_units u on u.id = wt.unit_id
+      join properties p on p.id = u.property_id
+      where
+        wt.unit_id = $1
+        and ($2::uuid is null or p.id = $2::uuid)
+      order by wm.sent_at desc
+      limit 40
+    `,
+    [id, session.propertyId],
+  );
+
+  return Response.json({
+    messages: result.rows.map((row) => ({
+      id: row.id,
+      threadId: row.thread_id,
+      direction: row.direction,
+      body: row.body,
+      sentAt: row.sent_at,
+      deliveredAt: row.delivered_at,
+      readAt: row.read_at,
+    })),
+  });
+}
 
 export async function POST(request: Request, { params }: Params) {
   const session = await requirePorterSession(request);
@@ -28,7 +73,8 @@ export async function POST(request: Request, { params }: Params) {
       select
         p.id as property_id,
         u.id as unit_id,
-        c.id as contact_id
+        c.id as contact_id,
+        c.phone_e164
       from residential_units u
       join properties p on p.id = u.property_id
       join residents r on r.unit_id = u.id and r.is_active = true
@@ -51,6 +97,10 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const contact = contactResult.rows[0];
+  const providerResult = await sendWhatsAppText({
+    to: contact.phone_e164,
+    body: message,
+  });
 
   const threadResult = await db.query(
     `
@@ -63,11 +113,16 @@ export async function POST(request: Request, { params }: Params) {
 
   const messageResult = await db.query(
     `
-      insert into whatsapp_messages (thread_id, direction, body, sent_by)
-      values ($1, 'outbound', $2, $3)
+      insert into whatsapp_messages (thread_id, direction, provider_message_id, body, sent_by)
+      values ($1, 'outbound', $2, $3, $4)
       returning id, sent_at
     `,
-    [threadResult.rows[0].id, message, session.userId],
+    [
+      threadResult.rows[0].id,
+      providerResult.providerMessageId,
+      message,
+      session.userId,
+    ],
   );
 
   await auditEvent({
@@ -87,9 +142,12 @@ export async function POST(request: Request, { params }: Params) {
       id: threadResult.rows[0].id,
       messageId: messageResult.rows[0].id,
       sentAt: messageResult.rows[0].sent_at,
-      status: "mocked",
+      status: providerResult.status,
+      mode: providerResult.mode,
       message:
-        "Mensaje guardado en historial interno. WhatsApp Business se integrara en una fase posterior.",
+        providerResult.mode === "cloud"
+          ? "Mensaje enviado por WhatsApp Cloud y guardado en historial."
+          : "Mensaje guardado en historial interno. Configura WhatsApp Cloud para envio real.",
     },
   });
 }
