@@ -20,3 +20,6 @@
 - Se conecto Neon usando `apps/api/.env.local`.
 - Se creo `apps/api/database/schema.sql`.
 - Se ejecuto `npm.cmd run db:init` y las tablas iniciales quedaron creadas en Neon.
+- Se cargaron 300 unidades de prueba para Arcadas de San Isidro.
+- Se crearon endpoints de busqueda, detalle protegido, llamada y mensaje para porteria.
+- Se conecto la app movil al backend para el primer flujo MVP.

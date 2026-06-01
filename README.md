@@ -31,3 +31,4 @@ Empieza por:
 - [docs/02-arquitectura.md](docs/02-arquitectura.md)
 - [docs/03-neon.md](docs/03-neon.md)
 - [docs/04-github.md](docs/04-github.md)
+- [docs/06-flujo-porteria-mvp.md](docs/06-flujo-porteria-mvp.md)
