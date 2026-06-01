@@ -11,7 +11,9 @@
     "db:check": "node --env-file=.env.local scripts/check-db.mjs",
     "db:seed:arcadas": "node --env-file=.env.local scripts/seed-arcadas.mjs",
     "db:seed:porter": "node --env-file=.env.local scripts/seed-porter-user.mjs",
-    "db:seed:admin": "node --env-file=.env.local scripts/seed-admin-user.mjs"
+    "db:seed:admin": "node --env-file=.env.local scripts/seed-admin-user.mjs",
+    "db:seed:resident": "node --env-file=.env.local scripts/seed-resident-user.mjs",
+    "test:smoke": "node --env-file=.env.local scripts/smoke-api.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

@@ -42,6 +42,7 @@ type UserSession = {
   token: string;
   username: string;
   role: string;
+  residentId?: string | null;
 };
 
 type HistoryItem = {
@@ -82,6 +83,34 @@ type ChatHistoryItem = {
   sentAt: string;
 };
 
+type ResidentPendingItem = {
+  id: string;
+  visitorName: string;
+  visitorType: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+};
+
+type ResidentHistoryItem = {
+  id: string;
+  type: string;
+  status: string;
+  visitorName: string;
+  occurredAt: string;
+};
+
+type ResidentDashboard = {
+  resident: {
+    fullName: string;
+    unitId: string;
+    unitLabel: string;
+    propertyName: string;
+  };
+  pending: ResidentPendingItem[];
+  history: ResidentHistoryItem[];
+};
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
@@ -107,6 +136,13 @@ export default function App() {
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  const [residentDashboard, setResidentDashboard] =
+    useState<ResidentDashboard | null>(null);
+  const [residentVisitorName, setResidentVisitorName] = useState(
+    'Visitante autorizado',
+  );
+  const [residentVisitorDocument, setResidentVisitorDocument] = useState('');
+  const [residentVisitorType, setResidentVisitorType] = useState('invitado');
   const [visitorName, setVisitorName] = useState('Visitante de prueba');
   const [visitorDocument, setVisitorDocument] = useState('123456789');
   const [visitorPhone, setVisitorPhone] = useState('3000000000');
@@ -119,6 +155,10 @@ export default function App() {
   });
 
   const normalizedApiUrl = useMemo(() => apiUrl.replace(/\/$/, ''), [apiUrl]);
+  const isPorterSession = Boolean(
+    session && ['porter', 'admin', 'superadmin'].includes(session.role),
+  );
+  const isResidentSession = session?.role === 'resident';
 
   async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${normalizedApiUrl}${path}`, {
@@ -162,11 +202,19 @@ export default function App() {
         token: data.token,
         username: data.user.username,
         role: data.user.role,
+        residentId: data.user.residentId ?? null,
       });
       setNotice({
         tone: 'success',
-        text: 'Sesion iniciada. Ya puedes buscar unidades.',
+        text:
+          data.user.role === 'resident'
+            ? 'Sesion de residente iniciada.'
+            : 'Sesion iniciada. Ya puedes buscar unidades.',
       });
+
+      if (data.user.role === 'resident') {
+        await loadResidentDashboard(data.token);
+      }
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -190,6 +238,7 @@ export default function App() {
     setIsPendingOpen(false);
     setMovements({ pendingEntry: [], pendingExit: [] });
     setIsMovementsOpen(false);
+    setResidentDashboard(null);
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
@@ -596,6 +645,104 @@ export default function App() {
     }
   }
 
+  async function loadResidentDashboard(tokenOverride?: string) {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando panel de residente...' });
+
+    try {
+      const response = await fetch(`${normalizedApiUrl}/api/resident/dashboard`, {
+        headers: {
+          Authorization: `Bearer ${tokenOverride ?? session?.token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'No se pudo cargar el panel de residente');
+      }
+
+      setResidentDashboard(data);
+      setNotice({
+        tone: 'success',
+        text: `Panel de residente actualizado. Pendientes: ${data.pending.length}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error cargando panel de residente.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function decideResidentAuthorization(
+    id: string,
+    decision: 'approved' | 'rejected',
+  ) {
+    setLoading(true);
+    setNotice({
+      tone: 'info',
+      text:
+        decision === 'approved'
+          ? 'Aprobando desde residente...'
+          : 'Rechazando desde residente...',
+    });
+
+    try {
+      const data = await request<{ message: string }>(
+        `/api/resident/authorizations/${id}/decision`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ decision }),
+        },
+      );
+      setNotice({ tone: 'success', text: data.message });
+      await loadResidentDashboard();
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error gestionando autorizacion.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createResidentVisitor() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Creando visitante autorizado...' });
+
+    try {
+      const data = await request<{ message: string }>('/api/resident/visitors', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: residentVisitorName,
+          documentId: residentVisitorDocument,
+          visitorType: residentVisitorType,
+        }),
+      });
+      setNotice({ tone: 'success', text: data.message });
+      await loadResidentDashboard();
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error creando visitante autorizado.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
@@ -653,7 +800,7 @@ export default function App() {
               <Text style={styles.primaryButtonText}>Ingresar</Text>
             </Pressable>
             <Text style={styles.hint}>
-              Usuario de prueba: porteria / Porteria123*
+              Usuarios de prueba: porteria / Porteria123* o residente / Residente123*
             </Text>
           </View>
         ) : (
@@ -670,7 +817,98 @@ export default function App() {
           </View>
         )}
 
-        {session ? (
+        {isResidentSession ? (
+          <View style={styles.panel}>
+            <Text style={styles.label}>Panel de residente</Text>
+            <Text style={styles.selectedTitle}>
+              {residentDashboard?.resident.unitLabel ?? 'Unidad residencial'}
+            </Text>
+            <Text style={styles.hint}>
+              {residentDashboard?.resident.propertyName ?? 'Conjunto residencial'}
+            </Text>
+
+            <Pressable
+              disabled={loading}
+              onPress={() => loadResidentDashboard()}
+              style={styles.inlineButton}
+            >
+              <Text style={styles.inlineButtonText}>Actualizar panel</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.subsectionTitle}>Solicitudes pendientes</Text>
+            {residentDashboard?.pending.length === 0 ? (
+              <Text style={styles.hint}>No tienes solicitudes pendientes.</Text>
+            ) : (
+              residentDashboard?.pending.map((item) => (
+                <View key={item.id} style={styles.pendingItem}>
+                  <Text style={styles.historyType}>pendiente</Text>
+                  <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                  <Text style={styles.historyMeta}>{item.visitorType}</Text>
+                  <View style={styles.decisionRow}>
+                    <Pressable
+                      disabled={loading}
+                      onPress={() => decideResidentAuthorization(item.id, 'approved')}
+                      style={[styles.decisionButton, styles.approveButton]}
+                    >
+                      <Text style={styles.decisionButtonText}>Aprobar</Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={loading}
+                      onPress={() => decideResidentAuthorization(item.id, 'rejected')}
+                      style={[styles.decisionButton, styles.rejectButton]}
+                    >
+                      <Text style={styles.rejectButtonText}>Rechazar</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))
+            )}
+
+            <View style={styles.divider} />
+
+            <Text style={styles.subsectionTitle}>Autorizar visitante</Text>
+            <TextInput
+              onChangeText={setResidentVisitorName}
+              placeholder="Nombre del visitante"
+              style={styles.input}
+              value={residentVisitorName}
+            />
+            <TextInput
+              onChangeText={setResidentVisitorDocument}
+              placeholder="Documento"
+              style={styles.input}
+              value={residentVisitorDocument}
+            />
+            <TextInput
+              onChangeText={setResidentVisitorType}
+              placeholder="Tipo de visitante"
+              style={styles.input}
+              value={residentVisitorType}
+            />
+            <Pressable
+              disabled={loading}
+              onPress={createResidentVisitor}
+              style={[styles.button, styles.warningButton]}
+            >
+              <Text style={styles.warningButtonText}>Crear autorizado</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.subsectionTitle}>Historial de tu unidad</Text>
+            {residentDashboard?.history.map((item) => (
+              <View key={item.id} style={styles.historyItem}>
+                <Text style={styles.historyType}>{item.type}</Text>
+                <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                <Text style={styles.historyMeta}>{item.status}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {isPorterSession ? (
         <View style={styles.panel}>
           <Text style={styles.label}>Buscar unidad</Text>
           <View style={styles.searchRow}>
@@ -720,7 +958,7 @@ export default function App() {
         </View>
         ) : null}
 
-        {session ? (
+        {isPorterSession ? (
           <View style={styles.panel}>
             <Pressable onPress={toggleMovements} style={styles.accordionHeader}>
               <View>
@@ -790,7 +1028,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {session ? (
+        {isPorterSession ? (
           <View style={styles.panel}>
             <Pressable
               onPress={togglePendingAuthorizations}
@@ -853,7 +1091,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {session ? (
+        {isPorterSession ? (
           <View style={styles.panel}>
             <Pressable onPress={toggleHistory} style={styles.accordionHeader}>
               <View>
@@ -900,7 +1138,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {session && selectedUnit ? (
+        {isPorterSession && selectedUnit ? (
           <View style={styles.panel}>
             <Text style={styles.label}>Unidad seleccionada</Text>
             <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>

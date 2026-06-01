@@ -11,6 +11,7 @@ type SessionPayload = {
   username: string;
   role: string;
   propertyId: string | null;
+  residentId?: string | null;
   exp: number;
 };
 
@@ -113,6 +114,7 @@ export function verifyToken(token: string): AuthSession | null {
     username: payload.username,
     role: payload.role,
     propertyId: payload.propertyId,
+    residentId: payload.residentId ?? null,
     exp: payload.exp,
   };
 }
@@ -153,6 +155,22 @@ export async function requireAdminSession(request: Request) {
   const session = verifyToken(token);
 
   if (!session || !["admin", "superadmin"].includes(session.role)) {
+    return null;
+  }
+
+  return session;
+}
+
+export async function requireResidentSession(request: Request) {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    return null;
+  }
+
+  const session = verifyToken(token);
+
+  if (!session || session.role !== "resident" || !session.residentId) {
     return null;
   }
 

@@ -10,6 +10,7 @@
 - [Flujo MVP de porteria](06-flujo-porteria-mvp.md)
 - [Panel administrativo web](07-panel-admin-web.md)
 - [WhatsApp, kiosco Android y llamadas](08-whatsapp-kiosco-llamadas.md)
+- [App de residentes y produccion](09-app-residentes-y-produccion.md)
 
 ## Relacion con OpenSpec
 

@@ -357,7 +357,7 @@ Criterio de finalizacion:
 - El control de acceso ya no depende solo de llamada manual.
 
 Estado:
-Futuro.
+Avanzado.
 
 ## Bloque 15 - Calidad, pruebas y preparacion para produccion
 
@@ -383,13 +383,13 @@ Criterio de finalizacion:
 - Esta listo para piloto controlado.
 
 Estado:
-Continuo.
+Avanzado y continuo.
 
 ## Orden sugerido de trabajo
 
-1. Bloque 14 - App de residentes.
-2. Bloque 15 - Calidad, pruebas y preparacion para produccion.
-3. Bloque 9 - Ampliar panel administrativo con edicion, desactivacion y carga masiva.
-4. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
-5. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
-6. Bloque 13 - Definir proveedor final de llamadas dentro de la app.
+1. Bloque 15 - Endurecer pruebas, seguridad y preparacion de piloto.
+2. Bloque 9 - Ampliar panel administrativo con edicion, desactivacion y carga masiva.
+3. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
+4. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
+5. Bloque 13 - Definir proveedor final de llamadas dentro de la app.
+6. Bloque 14 - Ampliar app de residentes con notificaciones y recuperacion de contrasena.

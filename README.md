@@ -39,3 +39,4 @@ Empieza por:
 - [docs/06-flujo-porteria-mvp.md](docs/06-flujo-porteria-mvp.md)
 - [docs/07-panel-admin-web.md](docs/07-panel-admin-web.md)
 - [docs/08-whatsapp-kiosco-llamadas.md](docs/08-whatsapp-kiosco-llamadas.md)
+- [docs/09-app-residentes-y-produccion.md](docs/09-app-residentes-y-produccion.md)

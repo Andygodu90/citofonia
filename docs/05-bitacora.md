@@ -41,3 +41,7 @@
 - Se agrego webhook base de WhatsApp para verificacion y mensajes entrantes.
 - Se documento la ruta tecnica para modo kiosco Android fuera de Expo Go.
 - Se amplio el registro de llamadas con estados operativos.
+- Se agrego rol residente con usuario de prueba `residente`.
+- Se agregaron endpoints de panel, decisiones y visitantes para residentes.
+- Se adapto la app movil para mostrar panel distinto segun rol.
+- Se agrego prueba smoke del backend para validar flujos principales.

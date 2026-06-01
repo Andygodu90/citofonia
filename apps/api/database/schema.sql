@@ -50,6 +50,7 @@ create table if not exists resident_contacts (
 create table if not exists app_users (
   id uuid primary key default gen_random_uuid(),
   property_id uuid references properties(id),
+  resident_id uuid references residents(id),
   username text not null unique,
   password_hash text not null,
   role text not null,
@@ -59,6 +60,9 @@ create table if not exists app_users (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table app_users
+  add column if not exists resident_id uuid references residents(id);
 
 create table if not exists visitors (
   id uuid primary key default gen_random_uuid(),

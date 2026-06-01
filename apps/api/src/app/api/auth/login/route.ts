@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       select
         id,
         property_id,
+        resident_id,
         username,
         password_hash,
         role,
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
     username: user.username,
     role: user.role,
     propertyId: user.property_id,
+    residentId: user.resident_id,
   });
 
   return Response.json({
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
       username: user.username,
       role: user.role,
       propertyId: user.property_id,
+      residentId: user.resident_id,
     },
   });
 }
