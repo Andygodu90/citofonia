@@ -45,3 +45,5 @@
 - Se agregaron endpoints de panel, decisiones y visitantes para residentes.
 - Se adapto la app movil para mostrar panel distinto segun rol.
 - Se agrego prueba smoke del backend para validar flujos principales.
+- Se agregaron acciones administrativas para activar o desactivar unidades, residentes y usuarios.
+- Se amplio la prueba smoke para validar cambios de estado administrativos.

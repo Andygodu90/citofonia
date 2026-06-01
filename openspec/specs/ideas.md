@@ -387,8 +387,8 @@ Avanzado y continuo.
 
 ## Orden sugerido de trabajo
 
-1. Bloque 15 - Endurecer pruebas, seguridad y preparacion de piloto.
-2. Bloque 9 - Ampliar panel administrativo con edicion, desactivacion y carga masiva.
+1. Bloque 15 - Endurecer seguridad, pruebas y preparacion de piloto.
+2. Bloque 9 - Agregar carga masiva de residentes desde CSV/Excel.
 3. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
 4. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
 5. Bloque 13 - Definir proveedor final de llamadas dentro de la app.

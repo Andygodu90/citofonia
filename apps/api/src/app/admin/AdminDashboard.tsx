@@ -16,6 +16,7 @@ type Unit = {
   display_label: string;
   block: string;
   unit_number: string;
+  is_active: boolean;
   residents: number;
   contacts: number;
 };
@@ -26,6 +27,7 @@ type Resident = {
   document_id: string | null;
   unit_label: string;
   phone: string;
+  is_active: boolean;
 };
 
 type User = {
@@ -250,6 +252,57 @@ export function AdminDashboard() {
     }
   }
 
+  async function updateUnitStatus(unitId: string, isActive: boolean) {
+    setLoading(true);
+
+    try {
+      await api(`/api/admin/units/${unitId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      });
+      setMessage(isActive ? "Unidad activada." : "Unidad desactivada.");
+      await loadDashboard();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error actualizando unidad.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateResidentStatus(residentId: string, isActive: boolean) {
+    setLoading(true);
+
+    try {
+      await api(`/api/admin/residents/${residentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      });
+      setMessage(isActive ? "Residente activado." : "Residente desactivado.");
+      await loadDashboard();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error actualizando residente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateUserStatus(userId: string, isActive: boolean) {
+    setLoading(true);
+
+    try {
+      await api(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      });
+      setMessage(isActive ? "Usuario activado." : "Usuario desactivado.");
+      await loadDashboard();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error actualizando usuario.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
       <section className="flex flex-col gap-3">
@@ -340,6 +393,22 @@ export function AdminDashboard() {
                 <p className="text-sm text-zinc-600">
                   Residentes: {unit.residents} - Contactos: {unit.contacts}
                 </p>
+                <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+                  {unit.is_active ? "activo" : "inactivo"}
+                </p>
+                <span
+                  className={`mt-3 inline-flex rounded-md px-3 py-2 text-sm font-bold ${
+                    unit.is_active
+                      ? "bg-red-50 text-red-700"
+                      : "bg-emerald-50 text-emerald-700"
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void updateUnitStatus(unit.id, !unit.is_active);
+                  }}
+                >
+                  {unit.is_active ? "Desactivar" : "Activar"}
+                </span>
               </button>
             ))}
           </div>
@@ -398,6 +467,20 @@ export function AdminDashboard() {
                   <p className="text-sm text-zinc-600">
                     {resident.unit_label} - {resident.document_id ?? "sin documento"}
                   </p>
+                  <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+                    {resident.is_active ? "activo" : "inactivo"}
+                  </p>
+                  <button
+                    className={`mt-3 rounded-md px-3 py-2 text-sm font-bold ${
+                      resident.is_active
+                        ? "bg-red-50 text-red-700"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}
+                    disabled={loading || !apiToken}
+                    onClick={() => updateResidentStatus(resident.id, !resident.is_active)}
+                  >
+                    {resident.is_active ? "Desactivar" : "Activar"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -444,6 +527,17 @@ export function AdminDashboard() {
               <p className="text-sm text-zinc-600">
                 {user.role} - {user.is_active ? "activo" : "inactivo"}
               </p>
+              <button
+                className={`mt-3 rounded-md px-3 py-2 text-sm font-bold ${
+                  user.is_active
+                    ? "bg-red-50 text-red-700"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+                disabled={loading || !apiToken}
+                onClick={() => updateUserStatus(user.id, !user.is_active)}
+              >
+                {user.is_active ? "Desactivar" : "Activar"}
+              </button>
             </div>
           ))}
         </div>

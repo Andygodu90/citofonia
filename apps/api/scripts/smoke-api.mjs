@@ -48,6 +48,25 @@ const units = await request("/api/porter/units?query=31%201A", {
 const resident = await request("/api/resident/dashboard", {
   headers: auth(residentToken),
 });
+const smokeUser = await request("/api/admin/users", {
+  method: "POST",
+  headers: auth(adminToken),
+  body: JSON.stringify({
+    username: "smoke_porteria",
+    password: "Smoke123*",
+    role: "porter",
+  }),
+});
+const disabledSmokeUser = await request(`/api/admin/users/${smokeUser.user.id}`, {
+  method: "PATCH",
+  headers: auth(adminToken),
+  body: JSON.stringify({ isActive: false }),
+});
+const enabledSmokeUser = await request(`/api/admin/users/${smokeUser.user.id}`, {
+  method: "PATCH",
+  headers: auth(adminToken),
+  body: JSON.stringify({ isActive: true }),
+});
 
 if (!summary.summary || !Array.isArray(reports.rows)) {
   throw new Error("Admin endpoints returned unexpected payloads");
@@ -61,10 +80,15 @@ if (!resident.resident?.unitLabel) {
   throw new Error("Resident dashboard did not return unit");
 }
 
+if (disabledSmokeUser.user.is_active !== false || enabledSmokeUser.user.is_active !== true) {
+  throw new Error("Admin user activation toggle failed");
+}
+
 console.table({
   baseUrl,
   adminUnits: summary.summary.units,
   reportRows: reports.rows.length,
   porterUnit: units.units[0].displayLabel,
   residentUnit: resident.resident.unitLabel,
+  adminToggle: "ok",
 });
