@@ -44,3 +44,5 @@ Empieza por:
 - [docs/11-carga-masiva-residentes.md](docs/11-carga-masiva-residentes.md)
 - [docs/12-checklist-piloto.md](docs/12-checklist-piloto.md)
 - [docs/13-despliegue-vercel-whatsapp.md](docs/13-despliegue-vercel-whatsapp.md)
+- [docs/14-avance-pasos-1-5.md](docs/14-avance-pasos-1-5.md)
+- [docs/15-decision-llamadas-reales.md](docs/15-decision-llamadas-reales.md)

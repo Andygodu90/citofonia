@@ -45,6 +45,13 @@ Bloqueos reales que no dependen solo de codigo:
 Prioridad actual:
 Pasar de piloto local a piloto controlado real.
 
+Avance iniciado en pasos 1 al 5:
+- Variables de entorno ampliadas para plantilla WhatsApp y URL publica.
+- Script `npm run check:pilot` creado para revisar preparacion de piloto.
+- Health check ampliado con plantilla y URL publica.
+- Scripts EAS agregados para build Android preview/production.
+- Documentos `14-avance-pasos-1-5.md` y `15-decision-llamadas-reales.md` creados.
+
 ## Bloque 1 - Base del sistema y entorno
 
 Objetivo:
@@ -439,9 +446,13 @@ Tareas:
 - Mantener `WHATSAPP_PHONE_NUMBER_ID`.
 - Mantener `WHATSAPP_VERIFY_TOKEN` en local, Vercel y Meta.
 - Verificar `/api/health`.
+- Ejecutar `npm run check:pilot`.
 
 Resultado esperado:
 El backend queda configurado con credenciales nuevas y seguras.
+
+Estado:
+Iniciado. El proyecto ya tiene script de verificacion; falta rotacion real en Meta.
 
 ### Paso 2 - Despliegue del backend en Vercel
 
@@ -455,9 +466,13 @@ Tareas:
 - Ejecutar build en Vercel.
 - Abrir `/api/health`.
 - Abrir `/admin`.
+- Definir `APP_PUBLIC_BASE_URL` con el dominio real.
 
 Resultado esperado:
 El backend funciona fuera del computador local.
+
+Estado:
+Preparado. Falta crear el proyecto y copiar variables en Vercel.
 
 ### Paso 3 - Configurar WhatsApp real
 
@@ -472,9 +487,13 @@ Tareas:
 - Enviar plantilla desde la app.
 - Responder desde WhatsApp del residente.
 - Cargar historial en la app.
+- Confirmar que la plantilla configurada en `.env` coincide con Meta.
 
 Resultado esperado:
 Porteria usa chat interno y el residente responde desde WhatsApp.
+
+Estado:
+Preparado tecnicamente. Falta aprobacion de plantilla y webhook publico.
 
 ### Paso 4 - Preparar build Android propia
 
@@ -487,9 +506,13 @@ Tareas:
 - Instalar APK en el celular de porteria.
 - Validar login, busqueda, registro, autorizaciones, chat e historial.
 - Documentar problemas encontrados.
+- Usar `npm run build:android:preview`.
 
 Resultado esperado:
 La app funciona instalada como APK propia.
+
+Estado:
+Preparado. Falta login EAS y generar APK.
 
 ### Paso 5 - Definir estrategia de llamadas reales
 
@@ -502,6 +525,9 @@ Opciones:
 
 Decision recomendada:
 Para cumplir "sin salirse de la app", evaluar VoIP como ruta principal. Mantener SIM como alternativa si se acepta abrir el dialer o usar app dialer predeterminada.
+
+Estado:
+Documentado. Recomendacion tecnica: VoIP/SIP/PBX como ruta principal; SIM solo como alternativa si se acepta dialer o modulo nativo.
 
 ### Paso 6 - Piloto controlado en porteria
 

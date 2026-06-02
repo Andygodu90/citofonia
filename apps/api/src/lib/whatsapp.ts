@@ -9,6 +9,20 @@ function getWhatsAppConfig() {
   return {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    authorizationTemplateName:
+      process.env.WHATSAPP_TEMPLATE_AUTHORIZATION_NAME ??
+      "solicitud_autorizacion_ingreso",
+    authorizationTemplateLanguage:
+      process.env.WHATSAPP_TEMPLATE_AUTHORIZATION_LANGUAGE ?? "es_CO",
+  };
+}
+
+export function getWhatsAppAuthorizationTemplate() {
+  const config = getWhatsAppConfig();
+
+  return {
+    name: config.authorizationTemplateName,
+    languageCode: config.authorizationTemplateLanguage,
   };
 }
 

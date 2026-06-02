@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getWhatsAppAuthorizationTemplate } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,12 @@ export async function GET() {
     accessTokenConfigured: hasMinLength(process.env.WHATSAPP_ACCESS_TOKEN, 20),
     phoneNumberIdConfigured: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
     verifyTokenConfigured: Boolean(process.env.WHATSAPP_VERIFY_TOKEN),
+    authorizationTemplate: getWhatsAppAuthorizationTemplate(),
+  };
+
+  const deployment = {
+    publicBaseUrlConfigured: Boolean(process.env.APP_PUBLIC_BASE_URL),
+    publicBaseUrl: process.env.APP_PUBLIC_BASE_URL ?? null,
   };
 
   const ready =
@@ -53,6 +60,7 @@ export async function GET() {
       database,
       auth,
       whatsapp,
+      deployment,
     },
     timestamp: new Date().toISOString(),
   });

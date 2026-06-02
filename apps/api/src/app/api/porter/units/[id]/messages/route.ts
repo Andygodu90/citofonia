@@ -1,6 +1,10 @@
 import { auditEvent, requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendWhatsAppTemplate, sendWhatsAppText } from "@/lib/whatsapp";
+import {
+  getWhatsAppAuthorizationTemplate,
+  sendWhatsAppTemplate,
+  sendWhatsAppText,
+} from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -71,6 +75,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const message = body.message?.trim() || "Mensaje de prueba desde porteria";
   const sendMode = body.sendMode === "template" ? "template" : "text";
+  const defaultTemplate = getWhatsAppAuthorizationTemplate();
 
   const contactResult = await db.query(
     `
@@ -105,8 +110,8 @@ export async function POST(request: Request, { params }: Params) {
     sendMode === "template"
       ? await sendWhatsAppTemplate({
           to: contact.phone_e164,
-          templateName: body.templateName?.trim() || "solicitud_autorizacion_ingreso",
-          languageCode: body.languageCode?.trim() || "es_CO",
+          templateName: body.templateName?.trim() || defaultTemplate.name,
+          languageCode: body.languageCode?.trim() || defaultTemplate.languageCode,
           bodyParameters: [message],
         })
       : await sendWhatsAppText({
@@ -154,13 +159,13 @@ export async function POST(request: Request, { params }: Params) {
     entityType: "whatsapp_messages",
     entityId: messageResult.rows[0].id,
     metadata: {
-        unitId: contact.unit_id,
-        threadId: threadResult.rows[0].id,
-        mode: providerResult.mode,
-        messageType: providerResult.messageType,
-        providerStatus: providerResult.status,
-      },
-    });
+      unitId: contact.unit_id,
+      threadId: threadResult.rows[0].id,
+      mode: providerResult.mode,
+      messageType: providerResult.messageType,
+      providerStatus: providerResult.status,
+    },
+  });
 
   return Response.json({
     thread: {

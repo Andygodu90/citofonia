@@ -13,7 +13,8 @@
     "db:seed:porter": "node --env-file=.env.local scripts/seed-porter-user.mjs",
     "db:seed:admin": "node --env-file=.env.local scripts/seed-admin-user.mjs",
     "db:seed:resident": "node --env-file=.env.local scripts/seed-resident-user.mjs",
-    "test:smoke": "node --env-file=.env.local scripts/smoke-api.mjs"
+    "test:smoke": "node --env-file=.env.local scripts/smoke-api.mjs",
+    "check:pilot": "node --env-file=.env.local scripts/check-pilot-readiness.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

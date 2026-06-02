@@ -15,6 +15,8 @@
 - [Carga masiva de residentes](11-carga-masiva-residentes.md)
 - [Checklist de piloto funcional](12-checklist-piloto.md)
 - [Despliegue Vercel y WhatsApp real](13-despliegue-vercel-whatsapp.md)
+- [Avance de pasos 1 al 5](14-avance-pasos-1-5.md)
+- [Decision tecnica de llamadas reales](15-decision-llamadas-reales.md)
 
 ## Relacion con OpenSpec
 
