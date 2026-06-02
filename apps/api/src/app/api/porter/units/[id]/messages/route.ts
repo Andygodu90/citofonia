@@ -1,6 +1,6 @@
 import { auditEvent, requirePorterSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendWhatsAppText } from "@/lib/whatsapp";
+import { sendWhatsAppTemplate, sendWhatsAppText } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 
@@ -64,9 +64,13 @@ export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     message?: string;
+    sendMode?: "text" | "template";
+    templateName?: string;
+    languageCode?: string;
   };
 
   const message = body.message?.trim() || "Mensaje de prueba desde porteria";
+  const sendMode = body.sendMode === "template" ? "template" : "text";
 
   const contactResult = await db.query(
     `
@@ -97,10 +101,18 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const contact = contactResult.rows[0];
-  const providerResult = await sendWhatsAppText({
-    to: contact.phone_e164,
-    body: message,
-  });
+  const providerResult =
+    sendMode === "template"
+      ? await sendWhatsAppTemplate({
+          to: contact.phone_e164,
+          templateName: body.templateName?.trim() || "solicitud_autorizacion_ingreso",
+          languageCode: body.languageCode?.trim() || "es_CO",
+          bodyParameters: [message],
+        })
+      : await sendWhatsAppText({
+          to: contact.phone_e164,
+          body: message,
+        });
 
   const threadResult = await db.query(
     `
@@ -113,13 +125,23 @@ export async function POST(request: Request, { params }: Params) {
 
   const messageResult = await db.query(
     `
-      insert into whatsapp_messages (thread_id, direction, provider_message_id, body, sent_by)
-      values ($1, 'outbound', $2, $3, $4)
+      insert into whatsapp_messages (
+        thread_id,
+        direction,
+        provider_message_id,
+        message_type,
+        provider_status,
+        body,
+        sent_by
+      )
+      values ($1, 'outbound', $2, $3, $4, $5, $6)
       returning id, sent_at
     `,
     [
       threadResult.rows[0].id,
       providerResult.providerMessageId,
+      providerResult.messageType,
+      providerResult.status,
       message,
       session.userId,
     ],
@@ -132,10 +154,13 @@ export async function POST(request: Request, { params }: Params) {
     entityType: "whatsapp_messages",
     entityId: messageResult.rows[0].id,
     metadata: {
-      unitId: contact.unit_id,
-      threadId: threadResult.rows[0].id,
-    },
-  });
+        unitId: contact.unit_id,
+        threadId: threadResult.rows[0].id,
+        mode: providerResult.mode,
+        messageType: providerResult.messageType,
+        providerStatus: providerResult.status,
+      },
+    });
 
   return Response.json({
     thread: {
@@ -144,9 +169,12 @@ export async function POST(request: Request, { params }: Params) {
       sentAt: messageResult.rows[0].sent_at,
       status: providerResult.status,
       mode: providerResult.mode,
+      messageType: providerResult.messageType,
       message:
         providerResult.mode === "cloud"
-          ? "Mensaje enviado por WhatsApp Cloud y guardado en historial."
+          ? providerResult.messageType === "template"
+            ? "Plantilla enviada por WhatsApp Cloud y guardada en historial."
+            : "Mensaje enviado por WhatsApp Cloud y guardado en historial."
           : "Mensaje guardado en historial interno. Configura WhatsApp Cloud para envio real.",
     },
   });

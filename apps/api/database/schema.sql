@@ -133,12 +133,21 @@ create table if not exists whatsapp_messages (
   thread_id uuid not null references whatsapp_threads(id),
   direction text not null,
   provider_message_id text,
+  message_type text not null default 'text',
+  provider_status text not null default 'created',
   body text not null,
   sent_by uuid references app_users(id),
   sent_at timestamptz not null default now(),
   delivered_at timestamptz,
   read_at timestamptz
 );
+
+alter table whatsapp_messages
+  add column if not exists message_type text not null default 'text',
+  add column if not exists provider_status text not null default 'created';
+
+create index if not exists idx_whatsapp_messages_provider_id
+  on whatsapp_messages(provider_message_id);
 
 create table if not exists security_reports (
   id uuid primary key default gen_random_uuid(),

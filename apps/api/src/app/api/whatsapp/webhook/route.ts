@@ -14,6 +14,11 @@ type WhatsAppWebhookPayload = {
           };
           timestamp?: string;
         }>;
+        statuses?: Array<{
+          id?: string;
+          status?: string;
+          timestamp?: string;
+        }>;
       };
     }>;
   }>;
@@ -43,8 +48,13 @@ export async function POST(request: Request) {
     payload.entry?.flatMap((entry) =>
       entry.changes?.flatMap((change) => change.value?.messages ?? []) ?? [],
     ) ?? [];
+  const statuses =
+    payload.entry?.flatMap((entry) =>
+      entry.changes?.flatMap((change) => change.value?.statuses ?? []) ?? [],
+    ) ?? [];
 
   let saved = 0;
+  let updated = 0;
 
   for (const message of messages) {
     const from = message.from;
@@ -103,5 +113,40 @@ export async function POST(request: Request) {
     saved += 1;
   }
 
-  return Response.json({ received: messages.length, saved });
+  for (const status of statuses) {
+    if (!status.id || !status.status) {
+      continue;
+    }
+
+    const timestamp = Number(status.timestamp ?? Math.floor(Date.now() / 1000));
+
+    const result = await db.query(
+      `
+        update whatsapp_messages
+        set
+          provider_status = $1,
+          delivered_at = case
+            when $1 in ('delivered', 'read') and delivered_at is null
+            then to_timestamp($2::bigint)
+            else delivered_at
+          end,
+          read_at = case
+            when $1 = 'read'
+            then to_timestamp($2::bigint)
+            else read_at
+          end
+        where provider_message_id = $3
+      `,
+      [status.status, timestamp, status.id],
+    );
+
+    updated += result.rowCount ?? 0;
+  }
+
+  return Response.json({
+    received: messages.length,
+    saved,
+    statuses: statuses.length,
+    updated,
+  });
 }
