@@ -17,6 +17,41 @@ function toDateFilter(value: string | null, fallback: string) {
   return value?.trim() || fallback;
 }
 
+function escapeCsv(value: string | number | null) {
+  const raw = value === null ? "" : String(value);
+
+  if (/[",\n\r]/.test(raw)) {
+    return `"${raw.replace(/"/g, '""')}"`;
+  }
+
+  return raw;
+}
+
+function toCsv(rows: Array<Record<string, string | number | null>>) {
+  const headers = [
+    "tipo",
+    "titulo",
+    "unidad",
+    "estado",
+    "usuario",
+    "fecha",
+  ];
+  const body = rows.map((row) =>
+    [
+      row.tipo,
+      row.titulo,
+      row.unidad,
+      row.estado,
+      row.usuario,
+      row.fecha,
+    ]
+      .map(escapeCsv)
+      .join(","),
+  );
+
+  return [headers.join(","), ...body].join("\n");
+}
+
 export async function GET(request: Request) {
   const session = await requireAdminSession(request);
 
@@ -29,6 +64,7 @@ export async function GET(request: Request) {
   const to = toDateFilter(searchParams.get("to"), "2999-12-31");
   const status = searchParams.get("status")?.trim() ?? "";
   const unit = searchParams.get("unit")?.trim() ?? "";
+  const format = searchParams.get("format")?.trim() ?? "json";
 
   const summary = await db.query(
     `
@@ -114,10 +150,30 @@ export async function GET(request: Request) {
           and ($5 = '' or u.display_label ilike '%' || $5 || '%')
       ) activity
       order by occurred_at desc
-      limit 80
+      limit ${format === "csv" ? 1000 : 80}
     `,
     [session.propertyId, from, to, status, unit],
   );
+
+  if (format === "csv") {
+    const csv = toCsv(
+      rows.rows.map((row) => ({
+        tipo: row.report_type,
+        titulo: row.title,
+        unidad: row.unit_label,
+        estado: row.status,
+        usuario: row.actor,
+        fecha: row.occurred_at,
+      })),
+    );
+
+    return new Response(csv, {
+      headers: {
+        "Content-Disposition": `attachment; filename="reporte-porteria-${from}-a-${to}.csv"`,
+        "Content-Type": "text/csv; charset=utf-8",
+      },
+    });
+  }
 
   return Response.json({
     filters: { from, to, status, unit },

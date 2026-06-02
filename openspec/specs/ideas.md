@@ -52,6 +52,12 @@ Avance iniciado en pasos 1 al 5:
 - Scripts EAS agregados para build Android preview/production.
 - Documentos `14-avance-pasos-1-5.md` y `15-decision-llamadas-reales.md` creados.
 
+Avance iniciado en pasos 6 y 7:
+- Reportes administrativos exportables a CSV.
+- Filtros de fecha agregados al panel administrativo.
+- Documento `16-piloto-controlado-porteria.md` creado.
+- Documento `17-mejoras-produccion.md` creado.
+
 ## Bloque 1 - Base del sistema y entorno
 
 Objetivo:
@@ -305,7 +311,7 @@ Criterio de finalizacion:
 - Los reportes ayudan a operar y auditar el conjunto.
 
 Estado:
-Avanzado para piloto. Pendiente futuro: exportar CSV/PDF y filtros mas completos.
+Avanzado para piloto. Exportacion CSV iniciada. Pendiente futuro: PDF y filtros mas completos.
 
 ## Bloque 11 - WhatsApp Business Cloud API
 
@@ -541,9 +547,13 @@ Tareas:
 - Probar ingreso, salida, rechazo, historial y reporte.
 - Medir errores y tiempos.
 - Recoger comentarios del celador/portero.
+- Exportar reporte CSV al final de la prueba.
 
 Resultado esperado:
 Lista de ajustes reales antes de ampliar a las 300 unidades.
+
+Estado:
+Preparado. Falta seleccionar unidades reales y ejecutar prueba en porteria.
 
 ### Paso 7 - Mejoras de produccion
 
@@ -562,3 +572,6 @@ Tareas:
 
 Resultado esperado:
 Sistema listo para evolucionar de citofonia MVP a plataforma residencial.
+
+Estado:
+Iniciado. Exportacion CSV y guia de produccion creadas; quedan pendientes mejoras funcionales posteriores.

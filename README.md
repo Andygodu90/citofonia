@@ -46,3 +46,5 @@ Empieza por:
 - [docs/13-despliegue-vercel-whatsapp.md](docs/13-despliegue-vercel-whatsapp.md)
 - [docs/14-avance-pasos-1-5.md](docs/14-avance-pasos-1-5.md)
 - [docs/15-decision-llamadas-reales.md](docs/15-decision-llamadas-reales.md)
+- [docs/16-piloto-controlado-porteria.md](docs/16-piloto-controlado-porteria.md)
+- [docs/17-mejoras-produccion.md](docs/17-mejoras-produccion.md)

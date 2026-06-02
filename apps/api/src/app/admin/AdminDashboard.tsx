@@ -94,6 +94,8 @@ export function AdminDashboard() {
   const [residentQuery, setResidentQuery] = useState("");
   const [reportUnitQuery, setReportUnitQuery] = useState("");
   const [reportStatus, setReportStatus] = useState("");
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
   const [auditAction, setAuditAction] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState("");
   const [residentName, setResidentName] = useState("");
@@ -155,6 +157,8 @@ export function AdminDashboard() {
         Authorization: `Bearer ${tokenOverride ?? apiToken}`,
       };
       const reportQuery = new URLSearchParams({
+        from: reportFrom,
+        to: reportTo,
         unit: reportUnitQuery,
         status: reportStatus,
       });
@@ -347,6 +351,46 @@ export function AdminDashboard() {
       await loadDashboard();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error actualizando usuario.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function exportReportsCsv() {
+    setLoading(true);
+    setMessage("Generando reporte CSV...");
+
+    try {
+      const reportQuery = new URLSearchParams({
+        from: reportFrom,
+        to: reportTo,
+        unit: reportUnitQuery,
+        status: reportStatus,
+        format: "csv",
+      });
+      const response = await fetch(`/api/admin/reports?${reportQuery.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "No se pudo exportar el reporte.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `reporte-porteria-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Reporte CSV generado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Error exportando reporte.");
     } finally {
       setLoading(false);
     }
@@ -654,7 +698,21 @@ export function AdminDashboard() {
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4">
         <h2 className="mb-3 text-lg font-black">Reportes</h2>
-        <div className="mb-4 grid gap-3 md:grid-cols-4">
+        <div className="mb-4 grid gap-3 md:grid-cols-6">
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setReportFrom(event.target.value)}
+            placeholder="Desde"
+            type="date"
+            value={reportFrom}
+          />
+          <input
+            className="rounded-md border border-zinc-300 px-3 py-2"
+            onChange={(event) => setReportTo(event.target.value)}
+            placeholder="Hasta"
+            type="date"
+            value={reportTo}
+          />
           <input
             className="rounded-md border border-zinc-300 px-3 py-2"
             onChange={(event) => setReportUnitQuery(event.target.value)}
@@ -679,6 +737,13 @@ export function AdminDashboard() {
             onClick={() => loadDashboard()}
           >
             Consultar
+          </button>
+          <button
+            className="rounded-md border border-blue-700 px-4 py-2 font-bold text-blue-700"
+            disabled={loading || !apiToken}
+            onClick={exportReportsCsv}
+          >
+            Exportar CSV
           </button>
         </div>
 
