@@ -1,6 +1,49 @@
 # Bloques de trabajo principales
 
-Este archivo organiza el proyecto por bloques completos de proceso. La idea es trabajar por segmentos funcionales grandes, no por tareas pequeñas aisladas.
+Este archivo organiza el proyecto por bloques completos de proceso. La idea es trabajar por segmentos funcionales grandes, no por tareas pequenas aisladas.
+
+## Estado general actual
+
+Fecha de corte:
+2 de junio de 2026.
+
+Estado del proyecto:
+La aplicacion esta lista para piloto funcional local. Se puede probar desde un celular Android con Expo Go, conectado al backend local y a la base de datos Neon.
+
+Ya esta implementado:
+- App movil de porteria.
+- Login por roles.
+- Busqueda protegida de unidades.
+- Registro de visitantes.
+- Autorizaciones pendientes.
+- Aprobacion y rechazo.
+- Registro de entrada y salida.
+- Historial operativo en acordeon.
+- Registro manual de llamadas con trazabilidad.
+- Chat tipo WhatsApp dentro de la app.
+- Envio de mensajes por texto o plantilla WhatsApp desde la app.
+- Webhook WhatsApp en backend.
+- App basica de residente.
+- Panel administrativo web.
+- Gestion de unidades, residentes y usuarios.
+- Reportes y auditoria.
+- Carga masiva de residentes por CSV.
+- Validaciones y confirmaciones antes de acciones sensibles.
+- Health check avanzado.
+- Smoke test funcional.
+- Configuracion base para EAS Build Android.
+- Documentacion de piloto, despliegue y WhatsApp.
+
+Bloqueos reales que no dependen solo de codigo:
+- Rotar el token de WhatsApp que fue compartido por chat.
+- Crear o aprobar plantilla en Meta para iniciar conversaciones.
+- Desplegar backend en Vercel para tener webhook publico.
+- Configurar webhook en Meta usando la URL publica.
+- Generar build Android propia para modo kiosco real.
+- Decidir estrategia de llamadas reales dentro de la app: SIM nativa/dialer o VoIP.
+
+Prioridad actual:
+Pasar de piloto local a piloto controlado real.
 
 ## Bloque 1 - Base del sistema y entorno
 
@@ -8,15 +51,15 @@ Objetivo:
 Dejar el proyecto estable, versionado, documentado y ejecutable en local.
 
 Incluye:
-- Preparar estructura de carpetas del proyecto.
-- Configurar app movil Android con Expo.
-- Configurar backend con Next.js.
-- Configurar base de datos Neon.
-- Crear repositorio GitHub.
-- Configurar variables de entorno.
-- Crear documentacion Markdown.
-- Crear scripts para inicializar y verificar base de datos.
-- Mantener OpenSpec y docs actualizados.
+- Estructura de carpetas del proyecto.
+- App movil Android con Expo.
+- Backend con Next.js.
+- Base de datos Neon.
+- Repositorio GitHub.
+- Variables de entorno.
+- Documentacion Markdown.
+- Scripts para inicializar y verificar base de datos.
+- OpenSpec y docs actualizados.
 
 Criterio de finalizacion:
 - El proyecto corre localmente.
@@ -26,7 +69,7 @@ Criterio de finalizacion:
 - El codigo esta versionado en GitHub.
 
 Estado:
-Avanzado.
+Completado para piloto local.
 
 ## Bloque 2 - Autenticacion, roles y seguridad base
 
@@ -53,7 +96,7 @@ Criterio de finalizacion:
 - Las acciones sensibles quedan auditadas.
 
 Estado:
-Avanzado. Queda pendiente rotacion de credenciales expuestas antes de piloto real.
+Avanzado para piloto. Antes de produccion se deben rotar credenciales expuestas y endurecer politica de contrasenas.
 
 ## Bloque 3 - Unidades, residentes y contactos protegidos
 
@@ -61,25 +104,25 @@ Objetivo:
 Gestionar la estructura residencial y proteger los datos personales de los residentes.
 
 Incluye:
-- Crear conjunto residencial.
-- Crear bloques, pisos y apartamentos.
-- Crear residentes asociados a unidades.
-- Crear contactos telefonicos y WhatsApp.
-- Buscar unidades por bloque, apartamento o combinacion.
-- Mostrar informacion protegida en porteria.
-- Evitar exponer nombres completos y telefonos al celador.
-- Crear endpoints para detalle de unidad.
-- Crear vista movil de busqueda y seleccion de unidad.
-- Ajustar experiencia cuando se selecciona una unidad.
+- Conjunto Residencial Arcadas de San Isidro.
+- Bloques 31 al 45.
+- 5 pisos por bloque.
+- 4 apartamentos por piso: A, B, C y D.
+- 300 unidades.
+- Residentes asociados a unidades.
+- Contactos telefonicos y WhatsApp.
+- Busqueda por bloque, apartamento o combinacion.
+- Informacion protegida en porteria.
+- Datos reales guardados solo en backend/base de datos.
 
 Criterio de finalizacion:
 - Porteria puede buscar unidades rapidamente.
 - Al seleccionar una unidad se oculta la lista completa.
 - La app muestra solo datos operativos protegidos.
-- Los contactos reales permanecen en backend/base de datos.
+- Los contactos reales permanecen protegidos.
 
 Estado:
-Avanzado.
+Completado para piloto.
 
 ## Bloque 4 - Citofonia, llamadas y comunicacion inicial
 
@@ -90,20 +133,20 @@ Incluye:
 - Registrar intentos de llamada.
 - Asociar llamada a unidad, contacto y usuario de porteria.
 - Guardar estado de llamada: iniciada, contestada, no contestada, rechazada.
-- Crear historial de llamadas.
-- Crear mensajes internos de prueba.
-- Preparar estructura para WhatsApp Business Cloud API.
-- Preparar estructura para llamadas por SIM o alternativa VoIP.
-- Auditar llamadas y mensajes.
-- Mantener datos sensibles protegidos.
+- Historial de llamadas.
+- Mensajes internos.
+- Estructura para WhatsApp Business Cloud API.
+- Preparacion para llamadas por SIM o alternativa VoIP.
+- Auditoria de llamadas y mensajes.
+- Privacidad de numeros.
 
 Criterio de finalizacion:
 - Cada llamada o mensaje queda registrado.
 - El historial muestra eventos de comunicacion.
-- El flujo esta listo para integrar WhatsApp Business en una fase posterior.
+- El flujo esta listo para integracion real de WhatsApp y llamadas.
 
 Estado:
-Avanzado. Llamada real dentro de la app queda condicionada a SIM nativa o VoIP.
+Avanzado. El registro y trazabilidad estan listos. La llamada real dentro de la app depende de una decision tecnica: SIM nativa/dialer o VoIP.
 
 ## Bloque 5 - Registro de visitantes
 
@@ -112,17 +155,14 @@ Permitir que porteria registre visitantes y deje una solicitud de ingreso pendie
 
 Incluye:
 - Formulario de visitante en app movil.
-- Nombre del visitante.
-- Documento.
-- Telefono.
-- Tipo de visitante.
-- Motivo de visita.
+- Nombre, documento, telefono, tipo y motivo.
 - Unidad visitada.
 - Registro en tabla de visitantes.
 - Creacion de autorizacion pendiente.
 - Creacion de evento de acceso pendiente.
 - Auditoria del registro.
-- Validaciones basicas de campos.
+- Validaciones basicas.
+- Confirmacion antes de registrar.
 
 Criterio de finalizacion:
 - Porteria puede registrar visitante desde una unidad seleccionada.
@@ -131,7 +171,7 @@ Criterio de finalizacion:
 - Se crea un evento de acceso pendiente.
 
 Estado:
-Avanzado.
+Completado para piloto.
 
 ## Bloque 6 - Autorizaciones e ingresos pendientes
 
@@ -146,9 +186,9 @@ Incluye:
 - Actualizar estado en autorizacion.
 - Actualizar estado en evento de acceso.
 - Registrar auditoria de aprobacion o rechazo.
-- Mostrar panel como acordeon para no saturar pantalla.
-- Actualizar historial despues de cada decision.
-- Preparar futura aprobacion por residente via WhatsApp o app residente.
+- Mostrar panel como acordeon.
+- Confirmaciones antes de aprobar o rechazar.
+- Preparar aprobacion por residente via WhatsApp o app residente.
 
 Criterio de finalizacion:
 - Porteria puede ver pendientes.
@@ -157,7 +197,7 @@ Criterio de finalizacion:
 - El historial refleja la accion.
 
 Estado:
-Avanzado.
+Completado para piloto.
 
 ## Bloque 7 - Historial operativo de porteria
 
@@ -171,10 +211,8 @@ Incluye:
 - Ultimos mensajes internos.
 - Estados de cada evento.
 - Fecha/hora de cada evento.
-- Filtros futuros por unidad, visitante, fecha y estado.
-- Vista por unidad.
 - Vista general de turno.
-- Exportacion futura para administracion.
+- Base para filtros futuros por unidad, visitante, fecha y estado.
 
 Criterio de finalizacion:
 - Porteria puede abrir/cerrar historial.
@@ -183,7 +221,7 @@ Criterio de finalizacion:
 - Refleja acciones recientes de llamadas, mensajes, visitantes e ingresos.
 
 Estado:
-Parcialmente avanzado.
+Completado para piloto. Pendiente futuro: filtros avanzados y exportacion.
 
 ## Bloque 8 - Flujo completo de ingreso y salida
 
@@ -198,9 +236,9 @@ Incluye:
 - Identificar ingresos pendientes de salida.
 - Evitar registrar salida sin ingreso.
 - Manejar visitantes rechazados.
-- Manejar visitantes que nunca ingresaron.
 - Consultar movimientos del dia.
 - Auditar cada cambio de estado.
+- Confirmaciones antes de entrada o salida.
 
 Criterio de finalizacion:
 - Cada visita tiene estado claro.
@@ -208,7 +246,7 @@ Criterio de finalizacion:
 - Porteria puede consultar ingresos abiertos.
 
 Estado:
-Avanzado.
+Completado para piloto.
 
 ## Bloque 9 - Panel administrativo web
 
@@ -223,8 +261,7 @@ Incluye:
 - Gestion de usuarios de porteria.
 - Consulta de visitantes.
 - Consulta de reportes.
-- Configuracion del conjunto.
-- Carga masiva futura desde Excel/CSV.
+- Configuracion inicial del conjunto.
 - Carga masiva desde CSV.
 - Desactivar residentes o unidades.
 - Control de permisos por rol.
@@ -232,9 +269,10 @@ Incluye:
 Criterio de finalizacion:
 - Administracion puede mantener datos sin tocar la base manualmente.
 - Porteria no puede acceder a funciones administrativas.
+- Se pueden cargar residentes de forma masiva.
 
 Estado:
-Avanzado.
+Avanzado para piloto. Pendiente futuro: mejorar UI del panel admin y soportar importacion Excel directa.
 
 ## Bloque 10 - Reportes y auditoria
 
@@ -260,7 +298,7 @@ Criterio de finalizacion:
 - Los reportes ayudan a operar y auditar el conjunto.
 
 Estado:
-Avanzado. Envio y webhook estan preparados; recepcion real depende de URL publica y reglas de Meta.
+Avanzado para piloto. Pendiente futuro: exportar CSV/PDF y filtros mas completos.
 
 ## Bloque 11 - WhatsApp Business Cloud API
 
@@ -272,11 +310,12 @@ Incluye:
 - Configurar WhatsApp Cloud API.
 - Crear webhook en backend.
 - Enviar mensajes desde backend.
+- Enviar texto o plantilla desde app movil.
 - Recibir respuestas de residentes.
 - Guardar conversaciones en Neon.
 - Mostrar chat dentro de la app.
 - Asociar mensajes a unidad, residente, visitante y autorizacion.
-- Manejar plantillas de WhatsApp si aplica.
+- Manejar plantillas de WhatsApp.
 - Controlar errores de entrega.
 
 Criterio de finalizacion:
@@ -286,7 +325,7 @@ Criterio de finalizacion:
 - El celador no abre WhatsApp normal.
 
 Estado:
-Avanzado.
+Avanzado tecnicamente. Para prueba real faltan pasos externos: rotar token, aprobar plantilla, desplegar backend en Vercel y configurar webhook publico en Meta.
 
 ## Bloque 12 - Modo kiosco Android y dispositivo dedicado
 
@@ -294,14 +333,13 @@ Objetivo:
 Convertir el celular de porteria en una terminal dedicada para la app.
 
 Incluye:
-- Evaluar salida de Expo Go hacia build propio.
-- Crear build Android con EAS o React Native nativo.
-- Configurar inicio automatico.
+- Salir de Expo Go hacia build propia.
+- Configuracion base EAS Build.
+- Crear APK interno.
 - Evaluar Lock Task Mode.
+- Configurar inicio automatico.
 - Restringir salida de la app.
-- Registrar intentos de salida.
 - Crear mecanismo administrativo para desbloqueo.
-- Revisar configuracion de dispositivo administrado.
 - Documentar instalacion en equipos de porteria.
 
 Criterio de finalizacion:
@@ -310,7 +348,7 @@ Criterio de finalizacion:
 - Solo administradores pueden salir del modo restringido.
 
 Estado:
-Avanzado en documentacion tecnica y configuracion base EAS. Requiere build Android propia para implementacion real.
+Preparado en configuracion y documentacion. Requiere build Android propia y pruebas sobre dispositivo fisico.
 
 ## Bloque 13 - Llamadas reales con SIM o alternativa VoIP
 
@@ -320,8 +358,8 @@ Definir e implementar la comunicacion telefonica real sin perder trazabilidad.
 Incluye:
 - Evaluar llamadas por SIM desde Android.
 - Evaluar limitaciones de no salir de la app.
-- Evaluar app dialer predeterminada.
-- Evaluar VoIP o central telefonica.
+- Evaluar app como dialer predeterminado.
+- Evaluar VoIP/SIP/PBX.
 - Registrar estados reales de llamada.
 - Registrar duracion.
 - Asociar llamada a visitante y autorizacion.
@@ -334,7 +372,7 @@ Criterio de finalizacion:
 - Cada llamada queda registrada en historial.
 
 Estado:
-Avanzado en estrategia y trazabilidad. Requiere decision final SIM nativa o VoIP para llamada dentro de la app.
+Avanzado en estrategia y trazabilidad. Requiere decision final: SIM nativa/dialer o VoIP.
 
 ## Bloque 14 - App de residentes
 
@@ -358,7 +396,7 @@ Criterio de finalizacion:
 - El control de acceso ya no depende solo de llamada manual.
 
 Estado:
-Avanzado.
+Base funcional implementada. Pendiente futuro: notificaciones, recuperacion de contrasena, comunicados y autorizaciones temporales avanzadas.
 
 ## Bloque 15 - Calidad, pruebas y preparacion para produccion
 
@@ -367,14 +405,16 @@ Hacer que el sistema sea confiable, mantenible y seguro.
 
 Incluye:
 - Pruebas de endpoints.
+- Smoke test.
 - Pruebas de flujos moviles.
 - Validaciones de formularios.
+- Confirmaciones antes de acciones importantes.
 - Manejo de errores.
 - Estados de carga.
 - Seguridad de variables.
 - Rotacion de credenciales filtradas.
 - Revision de permisos.
-- Logs.
+- Health check avanzado.
 - Preparacion de despliegue en Vercel.
 - Preparacion de builds Android.
 
@@ -384,13 +424,115 @@ Criterio de finalizacion:
 - Esta listo para piloto controlado.
 
 Estado:
-Avanzado y continuo. Se agregaron validaciones, confirmaciones, health check avanzado, smoke test ampliado y checklist de piloto.
+Avanzado para piloto. Pendiente produccion: rotacion de credenciales, despliegue publico, pruebas con usuarios reales y build Android propia.
 
-## Orden sugerido de trabajo
+## Ruta recomendada siguiente
 
-1. Bloque 15 - Endurecer seguridad, pruebas y preparacion de piloto.
-2. Bloque 9 - Carga masiva de residentes desde CSV.
-3. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
-4. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
-5. Bloque 13 - Definir proveedor final de llamadas dentro de la app.
-6. Bloque 14 - Ampliar app de residentes con notificaciones y recuperacion de contrasena.
+### Paso 1 - Cierre de seguridad de credenciales
+
+Objetivo:
+Evitar que el piloto real use tokens expuestos o inseguros.
+
+Tareas:
+- Rotar el token de WhatsApp en Meta.
+- Actualizar `WHATSAPP_ACCESS_TOKEN` en local y Vercel.
+- Mantener `WHATSAPP_PHONE_NUMBER_ID`.
+- Mantener `WHATSAPP_VERIFY_TOKEN` en local, Vercel y Meta.
+- Verificar `/api/health`.
+
+Resultado esperado:
+El backend queda configurado con credenciales nuevas y seguras.
+
+### Paso 2 - Despliegue del backend en Vercel
+
+Objetivo:
+Crear URL publica para API, panel admin y webhook WhatsApp.
+
+Tareas:
+- Crear proyecto en Vercel conectado a GitHub.
+- Usar root directory `apps/api`.
+- Configurar variables de entorno.
+- Ejecutar build en Vercel.
+- Abrir `/api/health`.
+- Abrir `/admin`.
+
+Resultado esperado:
+El backend funciona fuera del computador local.
+
+### Paso 3 - Configurar WhatsApp real
+
+Objetivo:
+Permitir mensajes reales y respuestas desde WhatsApp.
+
+Tareas:
+- Crear plantilla `solicitud_autorizacion_ingreso` en Meta.
+- Aprobar plantilla.
+- Configurar webhook de Meta con URL de Vercel.
+- Probar verificacion del webhook.
+- Enviar plantilla desde la app.
+- Responder desde WhatsApp del residente.
+- Cargar historial en la app.
+
+Resultado esperado:
+Porteria usa chat interno y el residente responde desde WhatsApp.
+
+### Paso 4 - Preparar build Android propia
+
+Objetivo:
+Salir de Expo Go para acercarnos a modo kiosco y funciones Android reales.
+
+Tareas:
+- Instalar/iniciar sesion en EAS.
+- Ejecutar build preview APK.
+- Instalar APK en el celular de porteria.
+- Validar login, busqueda, registro, autorizaciones, chat e historial.
+- Documentar problemas encontrados.
+
+Resultado esperado:
+La app funciona instalada como APK propia.
+
+### Paso 5 - Definir estrategia de llamadas reales
+
+Objetivo:
+Resolver si la llamada debe hacerse con SIM nativa o VoIP.
+
+Opciones:
+- SIM/dialer: mas cercana al celular, pero puede requerir permisos nativos y posiblemente salir al dialer.
+- VoIP/SIP/PBX: mas profesional para llamada dentro de la app, mejor trazabilidad y privacidad, pero requiere proveedor o central.
+
+Decision recomendada:
+Para cumplir "sin salirse de la app", evaluar VoIP como ruta principal. Mantener SIM como alternativa si se acepta abrir el dialer o usar app dialer predeterminada.
+
+### Paso 6 - Piloto controlado en porteria
+
+Objetivo:
+Probar el sistema en condiciones reales con pocos apartamentos.
+
+Tareas:
+- Elegir 5 a 10 unidades reales.
+- Cargar residentes reales por CSV.
+- Confirmar telefonos WhatsApp.
+- Probar ingreso, salida, rechazo, historial y reporte.
+- Medir errores y tiempos.
+- Recoger comentarios del celador/portero.
+
+Resultado esperado:
+Lista de ajustes reales antes de ampliar a las 300 unidades.
+
+### Paso 7 - Mejoras de produccion
+
+Objetivo:
+Preparar la app para uso estable y crecimiento.
+
+Tareas:
+- Recuperacion de contrasena.
+- Mejoras visuales del panel admin.
+- Exportacion de reportes.
+- Notificaciones para residentes.
+- Comunicados administrativos.
+- Permisos mas detallados por rol.
+- Logs operativos mas completos.
+- Plan de respaldo y mantenimiento de base de datos.
+
+Resultado esperado:
+Sistema listo para evolucionar de citofonia MVP a plataforma residencial.
