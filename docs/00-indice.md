@@ -12,6 +12,9 @@
 - [WhatsApp, kiosco Android y llamadas](08-whatsapp-kiosco-llamadas.md)
 - [App de residentes y produccion](09-app-residentes-y-produccion.md)
 - [Diseno visual de la app movil](10-diseno-visual-app.md)
+- [Carga masiva de residentes](11-carga-masiva-residentes.md)
+- [Checklist de piloto funcional](12-checklist-piloto.md)
+- [Despliegue Vercel y WhatsApp real](13-despliegue-vercel-whatsapp.md)
 
 ## Relacion con OpenSpec
 

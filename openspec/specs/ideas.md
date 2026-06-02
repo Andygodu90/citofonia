@@ -53,7 +53,7 @@ Criterio de finalizacion:
 - Las acciones sensibles quedan auditadas.
 
 Estado:
-Parcialmente avanzado.
+Avanzado. Queda pendiente rotacion de credenciales expuestas antes de piloto real.
 
 ## Bloque 3 - Unidades, residentes y contactos protegidos
 
@@ -103,7 +103,7 @@ Criterio de finalizacion:
 - El flujo esta listo para integrar WhatsApp Business en una fase posterior.
 
 Estado:
-Parcialmente avanzado.
+Avanzado. Llamada real dentro de la app queda condicionada a SIM nativa o VoIP.
 
 ## Bloque 5 - Registro de visitantes
 
@@ -225,6 +225,7 @@ Incluye:
 - Consulta de reportes.
 - Configuracion del conjunto.
 - Carga masiva futura desde Excel/CSV.
+- Carga masiva desde CSV.
 - Desactivar residentes o unidades.
 - Control de permisos por rol.
 
@@ -259,7 +260,7 @@ Criterio de finalizacion:
 - Los reportes ayudan a operar y auditar el conjunto.
 
 Estado:
-Avanzado.
+Avanzado. Envio y webhook estan preparados; recepcion real depende de URL publica y reglas de Meta.
 
 ## Bloque 11 - WhatsApp Business Cloud API
 
@@ -309,7 +310,7 @@ Criterio de finalizacion:
 - Solo administradores pueden salir del modo restringido.
 
 Estado:
-Avanzado en documentacion tecnica. Requiere build Android propia para implementacion real.
+Avanzado en documentacion tecnica y configuracion base EAS. Requiere build Android propia para implementacion real.
 
 ## Bloque 13 - Llamadas reales con SIM o alternativa VoIP
 
@@ -383,12 +384,12 @@ Criterio de finalizacion:
 - Esta listo para piloto controlado.
 
 Estado:
-Avanzado y continuo.
+Avanzado y continuo. Se agregaron validaciones, confirmaciones, health check avanzado, smoke test ampliado y checklist de piloto.
 
 ## Orden sugerido de trabajo
 
 1. Bloque 15 - Endurecer seguridad, pruebas y preparacion de piloto.
-2. Bloque 9 - Agregar carga masiva de residentes desde CSV/Excel.
+2. Bloque 9 - Carga masiva de residentes desde CSV.
 3. Bloque 11 - Conectar credenciales reales de WhatsApp Business Cloud API.
 4. Bloque 12 - Crear build Android propia y validar modo kiosco en dispositivo.
 5. Bloque 13 - Definir proveedor final de llamadas dentro de la app.

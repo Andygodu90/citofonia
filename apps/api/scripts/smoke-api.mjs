@@ -36,6 +36,7 @@ const residentToken = await login("residente", "Residente123*");
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` });
 
+const health = await request("/api/health");
 const summary = await request("/api/admin/summary", {
   headers: auth(adminToken),
 });
@@ -67,8 +68,16 @@ const enabledSmokeUser = await request(`/api/admin/users/${smokeUser.user.id}`, 
   headers: auth(adminToken),
   body: JSON.stringify({ isActive: true }),
 });
+const importDryRun = await request("/api/admin/import/residents", {
+  method: "POST",
+  headers: auth(adminToken),
+  body: JSON.stringify({
+    dryRun: true,
+    csv: "bloque,apartamento,nombre,documento,telefono\n35,1C,Smoke Test,SMOKE-1,3148337748",
+  }),
+});
 
-if (!summary.summary || !Array.isArray(reports.rows)) {
+if (!health.checks?.database || !summary.summary || !Array.isArray(reports.rows)) {
   throw new Error("Admin endpoints returned unexpected payloads");
 }
 
@@ -84,11 +93,22 @@ if (disabledSmokeUser.user.is_active !== false || enabledSmokeUser.user.is_activ
   throw new Error("Admin user activation toggle failed");
 }
 
+if (importDryRun.parsedRows !== 1) {
+  throw new Error("Resident CSV dry run failed");
+}
+
 console.table({
   baseUrl,
+  database: health.checks.database.ok ? "ok" : "error",
+  whatsapp:
+    health.checks.whatsapp.accessTokenConfigured &&
+    health.checks.whatsapp.phoneNumberIdConfigured
+      ? "configured"
+      : "pending",
   adminUnits: summary.summary.units,
   reportRows: reports.rows.length,
   porterUnit: units.units[0].displayLabel,
   residentUnit: resident.resident.unitLabel,
   adminToggle: "ok",
+  importDryRun: "ok",
 });

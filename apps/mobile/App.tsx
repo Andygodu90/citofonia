@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   SafeAreaView,
@@ -311,6 +312,21 @@ export default function App() {
   );
   const isResidentSession = session?.role === 'resident';
 
+  function showValidationError(text: string) {
+    setNotice({ tone: 'error', text });
+  }
+
+  function confirmAction(title: string, message: string, action: () => void) {
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        style: 'default',
+        onPress: action,
+      },
+    ]);
+  }
+
   async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${normalizedApiUrl}${path}`, {
       ...options,
@@ -394,6 +410,11 @@ export default function App() {
   }
 
   async function searchUnits() {
+    if (!query.trim()) {
+      showValidationError('Escribe un bloque o apartamento para buscar.');
+      return;
+    }
+
     setLoading(true);
     setSelectedSummary(null);
     setSelectedUnit(null);
@@ -692,8 +713,13 @@ export default function App() {
     }
   }
 
-  async function sendMessage() {
+  async function sendMessage(sendMode: 'text' | 'template' = 'text') {
     if (!selectedUnit) {
+      return;
+    }
+
+    if (!chatMessage.trim()) {
+      showValidationError('Escribe un mensaje antes de enviarlo.');
       return;
     }
 
@@ -705,7 +731,10 @@ export default function App() {
         thread: { message: string };
       }>(`/api/porter/units/${selectedUnit.id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ message: chatMessage }),
+        body: JSON.stringify({
+          message: chatMessage.trim(),
+          sendMode,
+        }),
       });
 
       setNotice({ tone: 'success', text: data.thread.message });
@@ -757,6 +786,21 @@ export default function App() {
       return;
     }
 
+    if (!visitorName.trim()) {
+      showValidationError('El nombre del visitante es obligatorio.');
+      return;
+    }
+
+    if (!visitorDocument.trim()) {
+      showValidationError('El documento del visitante es obligatorio.');
+      return;
+    }
+
+    if (!visitorType.trim()) {
+      showValidationError('El tipo de visitante es obligatorio.');
+      return;
+    }
+
     setLoading(true);
     setNotice({ tone: 'info', text: 'Registrando visitante...' });
 
@@ -767,11 +811,11 @@ export default function App() {
       }>(`/api/porter/units/${selectedUnit.id}/visitors`, {
         method: 'POST',
         body: JSON.stringify({
-          fullName: visitorName,
-          documentId: visitorDocument,
-          phone: visitorPhone,
-          visitorType,
-          reason: visitReason,
+          fullName: visitorName.trim(),
+          documentId: visitorDocument.trim(),
+          phone: visitorPhone.trim(),
+          visitorType: visitorType.trim(),
+          reason: visitReason.trim(),
         }),
       });
 
@@ -867,6 +911,16 @@ export default function App() {
   }
 
   async function createResidentVisitor() {
+    if (!residentVisitorName.trim()) {
+      showValidationError('El nombre del visitante autorizado es obligatorio.');
+      return;
+    }
+
+    if (!residentVisitorType.trim()) {
+      showValidationError('El tipo de visitante autorizado es obligatorio.');
+      return;
+    }
+
     setLoading(true);
     setNotice({ tone: 'info', text: 'Creando visitante autorizado...' });
 
@@ -874,9 +928,9 @@ export default function App() {
       const data = await request<{ message: string }>('/api/resident/visitors', {
         method: 'POST',
         body: JSON.stringify({
-          fullName: residentVisitorName,
-          documentId: residentVisitorDocument,
-          visitorType: residentVisitorType,
+          fullName: residentVisitorName.trim(),
+          documentId: residentVisitorDocument.trim(),
+          visitorType: residentVisitorType.trim(),
         }),
       });
       setNotice({ tone: 'success', text: data.message });
@@ -1071,14 +1125,26 @@ export default function App() {
                       disabled={loading}
                       flex
                       label="Aprobar"
-                      onPress={() => decideResidentAuthorization(item.id, 'approved')}
+                      onPress={() =>
+                        confirmAction(
+                          'Aprobar solicitud',
+                          `Autorizar ingreso de ${item.visitorName}?`,
+                          () => void decideResidentAuthorization(item.id, 'approved'),
+                        )
+                      }
                       tone="success"
                     />
                     <ActionButton
                       disabled={loading}
                       flex
                       label="Rechazar"
-                      onPress={() => decideResidentAuthorization(item.id, 'rejected')}
+                      onPress={() =>
+                        confirmAction(
+                          'Rechazar solicitud',
+                          `Rechazar ingreso de ${item.visitorName}?`,
+                          () => void decideResidentAuthorization(item.id, 'rejected'),
+                        )
+                      }
                       tone="danger"
                     />
                   </View>
@@ -1110,7 +1176,13 @@ export default function App() {
             <ActionButton
               disabled={loading}
               label="Crear autorizado"
-              onPress={createResidentVisitor}
+              onPress={() =>
+                confirmAction(
+                  'Crear autorizado',
+                  `Autorizar a ${residentVisitorName || 'este visitante'}?`,
+                  () => void createResidentVisitor(),
+                )
+              }
               tone="warning"
             />
 
@@ -1217,7 +1289,13 @@ export default function App() {
                         <ActionButton
                           disabled={loading}
                           label="Registrar entrada"
-                          onPress={() => registerMovement(item.authorizationId, 'entry')}
+                          onPress={() =>
+                            confirmAction(
+                              'Registrar entrada',
+                              `Confirmar entrada de ${item.visitorName}?`,
+                              () => void registerMovement(item.authorizationId, 'entry'),
+                            )
+                          }
                           tone="success"
                         />
                       </View>
@@ -1239,7 +1317,13 @@ export default function App() {
                         <ActionButton
                           disabled={loading}
                           label="Registrar salida"
-                          onPress={() => registerMovement(item.authorizationId, 'exit')}
+                          onPress={() =>
+                            confirmAction(
+                              'Registrar salida',
+                              `Confirmar salida de ${item.visitorName}?`,
+                              () => void registerMovement(item.authorizationId, 'exit'),
+                            )
+                          }
                           tone="danger"
                         />
                       </View>
@@ -1290,14 +1374,26 @@ export default function App() {
                           disabled={loading}
                           flex
                           label="Aprobar"
-                          onPress={() => decideAuthorization(item.id, 'approved')}
+                          onPress={() =>
+                            confirmAction(
+                              'Aprobar ingreso',
+                              `Aprobar ingreso de ${item.visitorName} para ${item.unitLabel}?`,
+                              () => void decideAuthorization(item.id, 'approved'),
+                            )
+                          }
                           tone="success"
                         />
                         <ActionButton
                           disabled={loading}
                           flex
                           label="Rechazar"
-                          onPress={() => decideAuthorization(item.id, 'rejected')}
+                          onPress={() =>
+                            confirmAction(
+                              'Rechazar ingreso',
+                              `Rechazar ingreso de ${item.visitorName} para ${item.unitLabel}?`,
+                              () => void decideAuthorization(item.id, 'rejected'),
+                            )
+                          }
                           tone="danger"
                         />
                       </View>
@@ -1382,27 +1478,51 @@ export default function App() {
                 disabled={loading || !selectedUnit.canCall}
                 flex
                 label="Iniciada"
-                onPress={() => registerCall('initiated')}
+                onPress={() =>
+                  confirmAction(
+                    'Registrar llamada',
+                    'Marcar llamada como iniciada?',
+                    () => void registerCall('initiated'),
+                  )
+                }
               />
               <ActionButton
                 disabled={loading || !selectedUnit.canCall}
                 flex
                 label="Contestada"
-                onPress={() => registerCall('answered')}
+                onPress={() =>
+                  confirmAction(
+                    'Registrar llamada',
+                    'Marcar llamada como contestada?',
+                    () => void registerCall('answered'),
+                  )
+                }
                 tone="success"
               />
               <ActionButton
                 disabled={loading || !selectedUnit.canCall}
                 flex
                 label="No contesta"
-                onPress={() => registerCall('no_answer')}
+                onPress={() =>
+                  confirmAction(
+                    'Registrar llamada',
+                    'Marcar llamada como no contestada?',
+                    () => void registerCall('no_answer'),
+                  )
+                }
                 tone="secondary"
               />
               <ActionButton
                 disabled={loading || !selectedUnit.canCall}
                 flex
                 label="Rechazada"
-                onPress={() => registerCall('rejected')}
+                onPress={() =>
+                  confirmAction(
+                    'Registrar llamada',
+                    'Marcar llamada como rechazada?',
+                    () => void registerCall('rejected'),
+                  )
+                }
                 tone="danger"
               />
             </View>
@@ -1447,7 +1567,13 @@ export default function App() {
             <ActionButton
               disabled={loading}
               label="Registrar visitante pendiente"
-              onPress={registerVisitor}
+              onPress={() =>
+                confirmAction(
+                  'Registrar visitante',
+                  `Crear solicitud pendiente para ${visitorName || 'este visitante'}?`,
+                  () => void registerVisitor(),
+                )
+              }
               tone="warning"
             />
 
@@ -1539,11 +1665,17 @@ export default function App() {
                 />
                 <ActionButton
                   disabled={loading || !selectedUnit.canChat}
-                  label="Enviar"
-                  onPress={sendMessage}
+                  label="Texto"
+                  onPress={() => void sendMessage('text')}
                 />
               </View>
 
+              <ActionButton
+                disabled={loading || !selectedUnit.canChat}
+                label="Enviar plantilla WhatsApp"
+                onPress={() => void sendMessage('template')}
+                tone="warning"
+              />
               <ActionButton
                 disabled={loading || !selectedUnit.canChat}
                 label="Cargar historial del chat"

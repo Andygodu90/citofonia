@@ -41,3 +41,6 @@ Empieza por:
 - [docs/08-whatsapp-kiosco-llamadas.md](docs/08-whatsapp-kiosco-llamadas.md)
 - [docs/09-app-residentes-y-produccion.md](docs/09-app-residentes-y-produccion.md)
 - [docs/10-diseno-visual-app.md](docs/10-diseno-visual-app.md)
+- [docs/11-carga-masiva-residentes.md](docs/11-carga-masiva-residentes.md)
+- [docs/12-checklist-piloto.md](docs/12-checklist-piloto.md)
+- [docs/13-despliegue-vercel-whatsapp.md](docs/13-despliegue-vercel-whatsapp.md)
