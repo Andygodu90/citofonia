@@ -11,6 +11,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import {
+  Button as PaperButton,
+  Card,
+  Chip,
+  MD3LightTheme,
+  PaperProvider,
+  TextInput as PaperTextInput,
+} from 'react-native-paper';
 
 const DEFAULT_API_URL = 'http://localhost:3000';
 
@@ -28,6 +36,20 @@ const palette = {
   green: '#16a34a',
   red: '#dc2626',
   blue: '#2563eb',
+};
+
+const paperTheme = {
+  ...MD3LightTheme,
+  roundness: 2,
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: palette.primary,
+    secondary: palette.amber,
+    tertiary: palette.navy,
+    surface: palette.surface,
+    surfaceVariant: palette.surfaceMuted,
+    outline: palette.line,
+  },
 };
 
 type UnitSearchResult = {
@@ -760,10 +782,12 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.headerCard}>
+    <PaperProvider theme={paperTheme}>
+      <SafeAreaView style={styles.screen}>
+        <StatusBar style="dark" />
+        <ScrollView contentContainerStyle={styles.content}>
+        <Card style={styles.headerCard}>
+          <Card.Content style={styles.headerCardContent}>
           <View style={styles.brandRow}>
             <View style={styles.brandMark}>
               <Text style={styles.brandMarkText}>A</Text>
@@ -793,16 +817,20 @@ export default function App() {
               <Text style={styles.metricLabel}>Perfil</Text>
             </View>
           </View>
-        </View>
+          </Card.Content>
+        </Card>
 
         <View style={styles.utilityPanel}>
           <Text style={styles.label}>Conexion API</Text>
-          <TextInput
+          <PaperTextInput
             autoCapitalize="none"
             autoCorrect={false}
+            dense
+            mode="outlined"
             onChangeText={setApiUrl}
-            placeholder="http://localhost:3000"
-            style={styles.input}
+            label="URL del backend"
+            outlineStyle={styles.paperInputOutline}
+            style={styles.paperInput}
             value={apiUrl}
           />
           <Text style={styles.hint}>
@@ -817,30 +845,37 @@ export default function App() {
             <Text style={styles.hint}>
               Usa tu perfil de porteria, administracion o residente.
             </Text>
-            <TextInput
+            <PaperTextInput
               autoCapitalize="none"
               autoCorrect={false}
+              dense
+              mode="outlined"
               onChangeText={setUsername}
-              placeholder="Usuario"
-              style={styles.input}
+              label="Usuario"
+              outlineStyle={styles.paperInputOutline}
+              style={styles.paperInput}
               value={username}
             />
-            <TextInput
+            <PaperTextInput
               autoCapitalize="none"
               autoCorrect={false}
+              dense
+              mode="outlined"
               onChangeText={setPassword}
-              placeholder="Contrasena"
+              label="Contrasena"
+              outlineStyle={styles.paperInputOutline}
               secureTextEntry
-              style={styles.input}
+              style={styles.paperInput}
               value={password}
             />
-            <Pressable
+            <PaperButton
               disabled={loading}
+              mode="contained"
               onPress={login}
-              style={[styles.button, styles.primaryButton, loading && styles.disabledButton]}
+              style={styles.paperButton}
             >
-              <Text style={styles.primaryButtonText}>Ingresar</Text>
-            </Pressable>
+              Ingresar
+            </PaperButton>
             <Text style={styles.hint}>
               Usuarios de prueba: porteria / Porteria123* o residente / Residente123*
             </Text>
@@ -853,9 +888,12 @@ export default function App() {
                 {session.username} - {session.role}
               </Text>
             </View>
-            <Pressable onPress={logout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Salir</Text>
-            </Pressable>
+            <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+              {session.role}
+            </Chip>
+            <PaperButton mode="outlined" onPress={logout} textColor={palette.red}>
+              Salir
+            </PaperButton>
           </View>
         )}
 
@@ -893,13 +931,14 @@ export default function App() {
               {residentDashboard?.resident.propertyName ?? 'Conjunto residencial'}
             </Text>
 
-            <Pressable
+            <PaperButton
               disabled={loading}
+              mode="outlined"
               onPress={() => loadResidentDashboard()}
-              style={styles.inlineButton}
+              style={styles.paperButton}
             >
-              <Text style={styles.inlineButtonText}>Actualizar panel</Text>
-            </Pressable>
+              Actualizar panel
+            </PaperButton>
 
             <View style={styles.divider} />
 
@@ -953,13 +992,16 @@ export default function App() {
               style={styles.input}
               value={residentVisitorType}
             />
-            <Pressable
+            <PaperButton
               disabled={loading}
+              mode="contained"
               onPress={createResidentVisitor}
-              style={[styles.button, styles.warningButton]}
+              buttonColor={palette.amber}
+              textColor={palette.ink}
+              style={styles.paperButton}
             >
-              <Text style={styles.warningButtonText}>Crear autorizado</Text>
-            </Pressable>
+              Crear autorizado
+            </PaperButton>
 
             <View style={styles.divider} />
 
@@ -979,20 +1021,25 @@ export default function App() {
           <Text style={styles.panelTitle}>Buscador de unidades</Text>
           <Text style={styles.hint}>Consulta por bloque, apartamento o combinacion.</Text>
           <View style={styles.searchRow}>
-            <TextInput
+            <PaperTextInput
               autoCapitalize="characters"
+              dense
+              mode="outlined"
               onChangeText={setQuery}
-              placeholder="Bloque o apto"
-              style={[styles.input, styles.searchInput]}
+              label="Bloque o apto"
+              outlineStyle={styles.paperInputOutline}
+              style={[styles.paperInput, styles.searchInput]}
               value={query}
             />
-            <Pressable
+            <PaperButton
+              compact
               disabled={loading}
+              mode="contained"
               onPress={searchUnits}
-              style={[styles.smallButton, loading && styles.disabledButton]}
+              style={styles.searchButton}
             >
-              <Text style={styles.smallButtonText}>Buscar</Text>
-            </Pressable>
+              Buscar
+            </PaperButton>
           </View>
 
           {loading ? <ActivityIndicator color="#111827" /> : null}
@@ -1291,15 +1338,16 @@ export default function App() {
                 value={visitReason}
               />
             </View>
-            <Pressable
+            <PaperButton
               disabled={loading}
+              mode="contained"
               onPress={registerVisitor}
-              style={[styles.button, styles.warningButton]}
+              buttonColor={palette.amber}
+              textColor={palette.ink}
+              style={styles.paperButton}
             >
-              <Text style={styles.warningButtonText}>
-                Registrar visitante pendiente
-              </Text>
-            </Pressable>
+              Registrar visitante pendiente
+            </PaperButton>
 
             <View style={styles.divider} />
 
@@ -1311,23 +1359,23 @@ export default function App() {
               value={chatMessage}
             />
 
-            <Pressable
+            <PaperButton
               disabled={loading || !selectedUnit.canChat}
+              mode="contained"
               onPress={sendMessage}
-              style={[styles.button, styles.secondaryButton]}
+              style={styles.paperButton}
             >
-              <Text style={styles.secondaryButtonText}>
-                Enviar o guardar mensaje
-              </Text>
-            </Pressable>
+              Enviar o guardar mensaje
+            </PaperButton>
 
-            <Pressable
+            <PaperButton
               disabled={loading || !selectedUnit.canChat}
+              mode="outlined"
               onPress={loadChatHistory}
-              style={styles.inlineButton}
+              style={styles.paperButton}
             >
-              <Text style={styles.inlineButtonText}>Cargar chat</Text>
-            </Pressable>
+              Cargar chat
+            </PaperButton>
 
             {chatHistory.map((item) => (
               <View key={item.id} style={styles.chatBubble}>
@@ -1337,8 +1385,9 @@ export default function App() {
             ))}
           </View>
         ) : null}
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </PaperProvider>
   );
 }
 
@@ -1354,15 +1403,17 @@ const styles = StyleSheet.create({
   headerCard: {
     backgroundColor: palette.navy,
     borderRadius: 8,
-    gap: 14,
     marginBottom: 14,
     marginTop: 8,
-    padding: 18,
     shadowColor: '#0f172a',
     shadowOpacity: 0.16,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
+  },
+  headerCardContent: {
+    gap: 14,
+    padding: 18,
   },
   brandRow: {
     alignItems: 'center',
@@ -1473,9 +1524,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
+    gap: 10,
     justifyContent: 'space-between',
     marginBottom: 12,
     padding: 16,
+  },
+  roleChip: {
+    backgroundColor: '#ccfbf1',
+  },
+  roleChipText: {
+    color: palette.primaryDark,
+    fontSize: 12,
+    fontWeight: '800',
   },
   sessionLabel: {
     color: palette.muted,
@@ -1517,6 +1577,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  paperInput: {
+    backgroundColor: palette.surface,
+    fontSize: 15,
+  },
+  paperInputOutline: {
+    borderColor: palette.line,
+    borderRadius: 8,
+  },
   hint: {
     color: palette.muted,
     fontSize: 14,
@@ -1529,6 +1597,14 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+  },
+  searchButton: {
+    alignSelf: 'stretch',
+    borderRadius: 8,
+    justifyContent: 'center',
+  },
+  paperButton: {
+    borderRadius: 8,
   },
   smallButton: {
     alignItems: 'center',

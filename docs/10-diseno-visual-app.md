@@ -6,8 +6,14 @@ La app movil debe sentirse como una herramienta residencial profesional, cercana
 
 ## Decision actual
 
-Por ahora no se instalo una libreria visual pesada. La app sigue usando React Native puro con `StyleSheet`, pero se creo una base de diseno interna:
+Se instalo React Native Paper como libreria visual base para mejorar la apariencia sin abandonar Expo Go. La app conserva `StyleSheet` para composicion propia, pero ahora usa componentes de Paper en zonas clave:
 
+- `PaperProvider`
+- Tema Material Design 3 personalizado.
+- `Card` para cabecera principal.
+- `Button` para acciones principales.
+- `TextInput` para campos destacados.
+- `Chip` para estados/perfiles.
 - Paleta centralizada.
 - Cabecera de marca.
 - Tarjetas tipo dashboard.
@@ -31,7 +37,7 @@ Esta decision mantiene compatibilidad con Expo Go y reduce el riesgo de romper l
 
 ### React Native Paper
 
-Buena opcion si queremos componentes listos:
+Opcion elegida para esta fase. Componentes listos:
 
 - Botones.
 - Text inputs.
@@ -40,9 +46,9 @@ Buena opcion si queremos componentes listos:
 - App bars.
 - Theme provider.
 
-Ventaja: acelera UI consistente.
+Ventaja: acelera UI consistente y se integra bien con Expo.
 
-Riesgo: hay que revisar compatibilidad exacta con Expo SDK 54 y ajustar estilos para que no parezca una app generica.
+Riesgo: hay que ajustar estilos propios para que no parezca una app generica.
 
 ### NativeWind
 
@@ -54,7 +60,7 @@ Riesgo: requiere configuracion adicional de Babel/Tailwind y puede agregar compl
 
 ## Recomendacion
 
-Mantener el sistema visual interno hasta que validemos los flujos principales. Cuando la app este mas estable, podemos migrar componentes repetidos a una carpeta como:
+Mantener React Native Paper + sistema visual interno. Cuando la app este mas estable, podemos migrar componentes repetidos a una carpeta como:
 
 ```text
 apps/mobile/src/ui/
