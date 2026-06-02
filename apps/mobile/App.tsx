@@ -781,6 +781,19 @@ export default function App() {
     }
   }
 
+  function formatChatTime(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
   return (
     <PaperProvider theme={paperTheme}>
       <SafeAreaView style={styles.screen}>
@@ -1351,38 +1364,111 @@ export default function App() {
 
             <View style={styles.divider} />
 
-            <Text style={styles.panelTitle}>Comunicacion protegida</Text>
-            <TextInput
-              multiline
-              onChangeText={setChatMessage}
-              style={[styles.input, styles.messageInput]}
-              value={chatMessage}
-            />
-
-            <PaperButton
-              disabled={loading || !selectedUnit.canChat}
-              mode="contained"
-              onPress={sendMessage}
-              style={styles.paperButton}
-            >
-              Enviar o guardar mensaje
-            </PaperButton>
-
-            <PaperButton
-              disabled={loading || !selectedUnit.canChat}
-              mode="outlined"
-              onPress={loadChatHistory}
-              style={styles.paperButton}
-            >
-              Cargar chat
-            </PaperButton>
-
-            {chatHistory.map((item) => (
-              <View key={item.id} style={styles.chatBubble}>
-                <Text style={styles.historyType}>{item.direction}</Text>
-                <Text style={styles.historyTitle}>{item.body}</Text>
+            <View style={styles.chatShell}>
+              <View style={styles.chatHeader}>
+                <View style={styles.chatAvatar}>
+                  <Text style={styles.chatAvatarText}>R</Text>
+                </View>
+                <View style={styles.chatHeaderText}>
+                  <Text style={styles.chatTitle}>Chat con residente</Text>
+                  <Text style={styles.chatSubtitle}>
+                    {selectedUnit.displayLabel} - numero protegido
+                  </Text>
+                </View>
+                <Chip compact style={styles.chatStatusChip} textStyle={styles.chatStatusText}>
+                  Seguro
+                </Chip>
               </View>
-            ))}
+
+              <View style={styles.chatTimeline}>
+                {chatHistory.length === 0 ? (
+                  <View style={styles.emptyChat}>
+                    <Text style={styles.emptyChatTitle}>Sin mensajes cargados</Text>
+                    <Text style={styles.emptyChatText}>
+                      Carga el historial o envia el primer mensaje protegido.
+                    </Text>
+                  </View>
+                ) : (
+                  [...chatHistory].reverse().map((item) => {
+                    const isOutbound = item.direction === 'outbound';
+
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.chatMessageRow,
+                          isOutbound
+                            ? styles.chatMessageRowOutbound
+                            : styles.chatMessageRowInbound,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.chatBubble,
+                            isOutbound ? styles.chatBubbleOutbound : styles.chatBubbleInbound,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.chatBubbleText,
+                              isOutbound
+                                ? styles.chatBubbleTextOutbound
+                                : styles.chatBubbleTextInbound,
+                            ]}
+                          >
+                            {item.body}
+                          </Text>
+                          <View style={styles.chatBubbleFooter}>
+                            <Text
+                              style={[
+                                styles.chatTime,
+                                isOutbound
+                                  ? styles.chatTimeOutbound
+                                  : styles.chatTimeInbound,
+                              ]}
+                            >
+                              {formatChatTime(item.sentAt)}
+                            </Text>
+                            {isOutbound ? (
+                              <Text style={styles.chatCheck}>✓✓</Text>
+                            ) : null}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+
+              <View style={styles.chatComposer}>
+                <TextInput
+                  multiline
+                  onChangeText={setChatMessage}
+                  placeholder="Escribe un mensaje..."
+                  style={styles.chatInput}
+                  value={chatMessage}
+                />
+                <Pressable
+                  disabled={loading || !selectedUnit.canChat}
+                  onPress={sendMessage}
+                  style={[
+                    styles.chatSendButton,
+                    (loading || !selectedUnit.canChat) && styles.disabledButton,
+                  ]}
+                >
+                  <Text style={styles.chatSendText}>Enviar</Text>
+                </Pressable>
+              </View>
+
+              <PaperButton
+                disabled={loading || !selectedUnit.canChat}
+                mode="outlined"
+                onPress={loadChatHistory}
+                style={styles.paperButton}
+              >
+                Cargar historial
+              </PaperButton>
+            </View>
           </View>
         ) : null}
         </ScrollView>
@@ -1846,11 +1932,170 @@ const styles = StyleSheet.create({
     minHeight: 94,
     textAlignVertical: 'top',
   },
-  chatBubble: {
-    backgroundColor: '#f8fafc',
+  chatShell: {
+    backgroundColor: '#e7f0ea',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  chatHeader: {
+    alignItems: 'center',
+    backgroundColor: palette.primaryDark,
+    flexDirection: 'row',
+    gap: 10,
     padding: 12,
+  },
+  chatAvatar: {
+    alignItems: 'center',
+    backgroundColor: '#ccfbf1',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  chatAvatarText: {
+    color: palette.primaryDark,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  chatHeaderText: {
+    flex: 1,
+  },
+  chatTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  chatSubtitle: {
+    color: '#bde7e3',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  chatStatusChip: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  chatStatusText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chatTimeline: {
+    gap: 8,
+    minHeight: 220,
+    padding: 12,
+  },
+  emptyChat: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.58)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    minHeight: 170,
+    padding: 18,
+  },
+  emptyChatTitle: {
+    color: palette.ink,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  emptyChatText: {
+    color: palette.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  chatMessageRow: {
+    flexDirection: 'row',
+  },
+  chatMessageRowInbound: {
+    justifyContent: 'flex-start',
+  },
+  chatMessageRowOutbound: {
+    justifyContent: 'flex-end',
+  },
+  chatBubble: {
+    borderRadius: 8,
+    maxWidth: '82%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chatBubbleInbound: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 2,
+  },
+  chatBubbleOutbound: {
+    backgroundColor: '#d9fdd3',
+    borderTopRightRadius: 2,
+  },
+  chatBubbleText: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  chatBubbleTextInbound: {
+    color: palette.ink,
+  },
+  chatBubbleTextOutbound: {
+    color: '#14351f',
+  },
+  chatBubbleFooter: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 3,
+  },
+  chatTime: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  chatTimeInbound: {
+    color: palette.muted,
+  },
+  chatTimeOutbound: {
+    color: '#4d7c54',
+  },
+  chatCheck: {
+    color: '#34b7f1',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  chatComposer: {
+    alignItems: 'flex-end',
+    backgroundColor: '#f0f2f5',
+    borderTopColor: 'rgba(15, 23, 42, 0.08)',
+    borderRadius: 8,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    margin: 10,
+    padding: 8,
+  },
+  chatInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d7dde5',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: palette.ink,
+    flex: 1,
+    fontSize: 15,
+    maxHeight: 110,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlignVertical: 'top',
+  },
+  chatSendButton: {
+    alignItems: 'center',
+    backgroundColor: palette.primary,
+    borderRadius: 8,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  chatSendText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
   },
 });
