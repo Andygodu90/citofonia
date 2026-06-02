@@ -149,6 +149,119 @@ type ResidentDashboard = {
   history: ResidentHistoryItem[];
 };
 
+type ActionButtonTone =
+  | 'primary'
+  | 'secondary'
+  | 'success'
+  | 'warning'
+  | 'danger';
+
+type ActionButtonProps = {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  tone?: ActionButtonTone;
+  compact?: boolean;
+  flex?: boolean;
+};
+
+function getActionButtonColors(tone: ActionButtonTone) {
+  if (tone === 'secondary') {
+    return {
+      buttonColor: palette.surface,
+      mode: 'outlined' as const,
+      textColor: palette.ink,
+    };
+  }
+
+  if (tone === 'success') {
+    return {
+      buttonColor: palette.green,
+      mode: 'contained' as const,
+      textColor: '#ffffff',
+    };
+  }
+
+  if (tone === 'warning') {
+    return {
+      buttonColor: palette.amber,
+      mode: 'contained' as const,
+      textColor: palette.ink,
+    };
+  }
+
+  if (tone === 'danger') {
+    return {
+      buttonColor: '#ffffff',
+      mode: 'outlined' as const,
+      textColor: palette.red,
+    };
+  }
+
+  return {
+    buttonColor: palette.primary,
+    mode: 'contained' as const,
+    textColor: '#ffffff',
+  };
+}
+
+function ActionButton({
+  label,
+  onPress,
+  disabled = false,
+  tone = 'primary',
+  compact = false,
+  flex = false,
+}: ActionButtonProps) {
+  const colors = getActionButtonColors(tone);
+
+  return (
+    <PaperButton
+      compact={compact}
+      disabled={disabled}
+      mode={colors.mode}
+      onPress={onPress}
+      buttonColor={colors.buttonColor}
+      textColor={colors.textColor}
+      style={[styles.actionButton, flex ? styles.actionButtonFlex : null]}
+    >
+      {label}
+    </PaperButton>
+  );
+}
+
+type AccordionToggleProps = {
+  title: string;
+  summary: string;
+  isOpen: boolean;
+  onPress: () => void;
+};
+
+function AccordionToggle({
+  title,
+  summary,
+  isOpen,
+  onPress,
+}: AccordionToggleProps) {
+  return (
+    <Pressable onPress={onPress} style={styles.accordionHeader}>
+      <View style={styles.accordionTitleBlock}>
+        <Text style={styles.panelTitle}>{title}</Text>
+        <Text style={styles.hint}>{summary}</Text>
+      </View>
+      <Chip
+        compact
+        style={isOpen ? styles.accordionChipOpen : styles.accordionChip}
+        textStyle={
+          isOpen ? styles.accordionChipOpenText : styles.accordionChipText
+        }
+      >
+        {isOpen ? 'Cerrar' : 'Abrir'}
+      </Chip>
+    </Pressable>
+  );
+}
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
@@ -881,14 +994,7 @@ export default function App() {
               style={styles.paperInput}
               value={password}
             />
-            <PaperButton
-              disabled={loading}
-              mode="contained"
-              onPress={login}
-              style={styles.paperButton}
-            >
-              Ingresar
-            </PaperButton>
+            <ActionButton disabled={loading} label="Ingresar" onPress={login} />
             <Text style={styles.hint}>
               Usuarios de prueba: porteria / Porteria123* o residente / Residente123*
             </Text>
@@ -904,9 +1010,7 @@ export default function App() {
             <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
               {session.role}
             </Chip>
-            <PaperButton mode="outlined" onPress={logout} textColor={palette.red}>
-              Salir
-            </PaperButton>
+            <ActionButton label="Salir" onPress={logout} tone="danger" />
           </View>
         )}
 
@@ -944,14 +1048,12 @@ export default function App() {
               {residentDashboard?.resident.propertyName ?? 'Conjunto residencial'}
             </Text>
 
-            <PaperButton
+            <ActionButton
               disabled={loading}
-              mode="outlined"
+              label="Actualizar panel"
               onPress={() => loadResidentDashboard()}
-              style={styles.paperButton}
-            >
-              Actualizar panel
-            </PaperButton>
+              tone="secondary"
+            />
 
             <View style={styles.divider} />
 
@@ -964,21 +1066,21 @@ export default function App() {
                   <Text style={styles.historyType}>pendiente</Text>
                   <Text style={styles.historyTitle}>{item.visitorName}</Text>
                   <Text style={styles.historyMeta}>{item.visitorType}</Text>
-                  <View style={styles.decisionRow}>
-                    <Pressable
+                  <View style={styles.actionRow}>
+                    <ActionButton
                       disabled={loading}
+                      flex
+                      label="Aprobar"
                       onPress={() => decideResidentAuthorization(item.id, 'approved')}
-                      style={[styles.decisionButton, styles.approveButton]}
-                    >
-                      <Text style={styles.decisionButtonText}>Aprobar</Text>
-                    </Pressable>
-                    <Pressable
+                      tone="success"
+                    />
+                    <ActionButton
                       disabled={loading}
+                      flex
+                      label="Rechazar"
                       onPress={() => decideResidentAuthorization(item.id, 'rejected')}
-                      style={[styles.decisionButton, styles.rejectButton]}
-                    >
-                      <Text style={styles.rejectButtonText}>Rechazar</Text>
-                    </Pressable>
+                      tone="danger"
+                    />
                   </View>
                 </View>
               ))
@@ -1005,16 +1107,12 @@ export default function App() {
               style={styles.input}
               value={residentVisitorType}
             />
-            <PaperButton
+            <ActionButton
               disabled={loading}
-              mode="contained"
+              label="Crear autorizado"
               onPress={createResidentVisitor}
-              buttonColor={palette.amber}
-              textColor={palette.ink}
-              style={styles.paperButton}
-            >
-              Crear autorizado
-            </PaperButton>
+              tone="warning"
+            />
 
             <View style={styles.divider} />
 
@@ -1030,80 +1128,80 @@ export default function App() {
         ) : null}
 
         {isPorterSession ? (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Buscador de unidades</Text>
-          <Text style={styles.hint}>Consulta por bloque, apartamento o combinacion.</Text>
-          <View style={styles.searchRow}>
-            <PaperTextInput
-              autoCapitalize="characters"
-              dense
-              mode="outlined"
-              onChangeText={setQuery}
-              label="Bloque o apto"
-              outlineStyle={styles.paperInputOutline}
-              style={[styles.paperInput, styles.searchInput]}
-              value={query}
-            />
-            <PaperButton
-              compact
-              disabled={loading}
-              mode="contained"
-              onPress={searchUnits}
-              style={styles.searchButton}
-            >
-              Buscar
-            </PaperButton>
-          </View>
-
-          {loading ? <ActivityIndicator color="#111827" /> : null}
-
-          {selectedSummary ? (
-            <View style={[styles.unitItem, styles.unitItemSelected]}>
-              <Text style={styles.unitTitle}>{selectedSummary.displayLabel}</Text>
-              <Text style={styles.unitMeta}>{selectedSummary.privacyLabel}</Text>
-              <Pressable onPress={clearSelectedUnit} style={styles.inlineButton}>
-                <Text style={styles.inlineButtonText}>Cambiar unidad</Text>
-              </Pressable>
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Buscador de unidades</Text>
+            <Text style={styles.hint}>Consulta por bloque, apartamento o combinacion.</Text>
+            <View style={styles.searchRow}>
+              <PaperTextInput
+                autoCapitalize="characters"
+                dense
+                mode="outlined"
+                onChangeText={setQuery}
+                label="Bloque o apto"
+                outlineStyle={styles.paperInputOutline}
+                style={[styles.paperInput, styles.searchInput]}
+                value={query}
+              />
+              <ActionButton
+                compact
+                disabled={loading}
+                label="Buscar"
+                onPress={searchUnits}
+              />
             </View>
-          ) : (
-            <FlatList
-              data={units}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <Pressable onPress={() => loadUnit(item)} style={styles.unitItem}>
-                  <Text style={styles.unitTitle}>{item.displayLabel}</Text>
-                  <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
-                </Pressable>
-              )}
-              scrollEnabled={false}
-            />
-          )}
-        </View>
+
+            {loading ? <ActivityIndicator color="#111827" /> : null}
+
+            {selectedSummary ? (
+              <View style={[styles.unitItem, styles.unitItemSelected]}>
+                <Text style={styles.unitTitle}>{selectedSummary.displayLabel}</Text>
+                <Text style={styles.unitMeta}>{selectedSummary.privacyLabel}</Text>
+                <View style={styles.cardActionRow}>
+                  <ActionButton
+                    compact
+                    label="Cambiar unidad"
+                    onPress={clearSelectedUnit}
+                    tone="secondary"
+                  />
+                </View>
+              </View>
+            ) : (
+              <FlatList
+                data={units}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => loadUnit(item)} style={styles.unitItem}>
+                    <Text style={styles.unitTitle}>{item.displayLabel}</Text>
+                    <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
+                  </Pressable>
+                )}
+                scrollEnabled={false}
+              />
+            )}
+          </View>
         ) : null}
 
         {isPorterSession ? (
           <View style={styles.panel}>
-            <Pressable onPress={toggleMovements} style={styles.accordionHeader}>
-              <View>
-                <Text style={styles.panelTitle}>Entradas y salidas</Text>
-                <Text style={styles.hint}>
-                  {isMovementsOpen ? 'Toca para ocultar' : 'Toca para abrir'}
-                </Text>
-              </View>
-              <Text style={styles.accordionIcon}>
-                {isMovementsOpen ? 'Cerrar' : 'Abrir'}
-              </Text>
-            </Pressable>
+            <AccordionToggle
+              isOpen={isMovementsOpen}
+              onPress={toggleMovements}
+              summary={
+                isMovementsOpen
+                  ? 'Control de visitantes aprobados y salidas abiertas.'
+                  : 'Ver visitantes por entrar o por salir.'
+              }
+              title="Entradas y salidas"
+            />
 
             {isMovementsOpen ? (
               <View style={styles.accordionBody}>
-                <Pressable
+                <ActionButton
                   disabled={loading}
+                  label="Actualizar movimientos"
                   onPress={loadMovements}
-                  style={styles.inlineButton}
-                >
-                  <Text style={styles.inlineButtonText}>Actualizar</Text>
-                </Pressable>
+                  tone="secondary"
+                />
 
                 <Text style={styles.subsectionTitle}>Aprobados por entrar</Text>
                 {movements.pendingEntry.length === 0 ? (
@@ -1115,13 +1213,14 @@ export default function App() {
                       <Text style={styles.historyMeta}>
                         {item.unitLabel} - {item.visitorType}
                       </Text>
-                      <Pressable
-                        disabled={loading}
-                        onPress={() => registerMovement(item.authorizationId, 'entry')}
-                        style={[styles.decisionButton, styles.approveButton]}
-                      >
-                        <Text style={styles.decisionButtonText}>Registrar entrada</Text>
-                      </Pressable>
+                      <View style={styles.cardActionRow}>
+                        <ActionButton
+                          disabled={loading}
+                          label="Registrar entrada"
+                          onPress={() => registerMovement(item.authorizationId, 'entry')}
+                          tone="success"
+                        />
+                      </View>
                     </View>
                   ))
                 )}
@@ -1136,13 +1235,14 @@ export default function App() {
                       <Text style={styles.historyMeta}>
                         {item.unitLabel} - {item.visitorType}
                       </Text>
-                      <Pressable
-                        disabled={loading}
-                        onPress={() => registerMovement(item.authorizationId, 'exit')}
-                        style={[styles.decisionButton, styles.rejectButton]}
-                      >
-                        <Text style={styles.rejectButtonText}>Registrar salida</Text>
-                      </Pressable>
+                      <View style={styles.cardActionRow}>
+                        <ActionButton
+                          disabled={loading}
+                          label="Registrar salida"
+                          onPress={() => registerMovement(item.authorizationId, 'exit')}
+                          tone="danger"
+                        />
+                      </View>
                     </View>
                   ))
                 )}
@@ -1153,30 +1253,25 @@ export default function App() {
 
         {isPorterSession ? (
           <View style={styles.panel}>
-            <Pressable
+            <AccordionToggle
+              isOpen={isPendingOpen}
               onPress={togglePendingAuthorizations}
-              style={styles.accordionHeader}
-            >
-              <View>
-                <Text style={styles.panelTitle}>Ingresos pendientes</Text>
-                <Text style={styles.hint}>
-                  {isPendingOpen ? 'Toca para ocultar' : 'Toca para abrir'}
-                </Text>
-              </View>
-              <Text style={styles.accordionIcon}>
-                {isPendingOpen ? 'Cerrar' : 'Abrir'}
-              </Text>
-            </Pressable>
+              summary={
+                isPendingOpen
+                  ? 'Solicitudes listas para decision de porteria.'
+                  : 'Abrir autorizaciones pendientes.'
+              }
+              title="Ingresos pendientes"
+            />
 
             {isPendingOpen ? (
               <View style={styles.accordionBody}>
-                <Pressable
+                <ActionButton
                   disabled={loading}
+                  label="Actualizar pendientes"
                   onPress={loadPendingAuthorizations}
-                  style={styles.inlineButton}
-                >
-                  <Text style={styles.inlineButtonText}>Actualizar</Text>
-                </Pressable>
+                  tone="secondary"
+                />
 
                 {pendingAuthorizations.length === 0 ? (
                   <Text style={styles.hint}>
@@ -1190,21 +1285,21 @@ export default function App() {
                       <Text style={styles.historyMeta}>
                         {item.unitLabel} - {item.visitorType}
                       </Text>
-                      <View style={styles.decisionRow}>
-                        <Pressable
+                      <View style={styles.actionRow}>
+                        <ActionButton
                           disabled={loading}
+                          flex
+                          label="Aprobar"
                           onPress={() => decideAuthorization(item.id, 'approved')}
-                          style={[styles.decisionButton, styles.approveButton]}
-                        >
-                          <Text style={styles.decisionButtonText}>Aprobar</Text>
-                        </Pressable>
-                        <Pressable
+                          tone="success"
+                        />
+                        <ActionButton
                           disabled={loading}
+                          flex
+                          label="Rechazar"
                           onPress={() => decideAuthorization(item.id, 'rejected')}
-                          style={[styles.decisionButton, styles.rejectButton]}
-                        >
-                          <Text style={styles.rejectButtonText}>Rechazar</Text>
-                        </Pressable>
+                          tone="danger"
+                        />
                       </View>
                     </View>
                   ))
@@ -1216,27 +1311,25 @@ export default function App() {
 
         {isPorterSession ? (
           <View style={styles.panel}>
-            <Pressable onPress={toggleHistory} style={styles.accordionHeader}>
-              <View>
-                <Text style={styles.panelTitle}>Historial reciente</Text>
-                <Text style={styles.hint}>
-                  {isHistoryOpen ? 'Toca para ocultar' : 'Toca para abrir'}
-                </Text>
-              </View>
-              <Text style={styles.accordionIcon}>
-                {isHistoryOpen ? 'Cerrar' : 'Abrir'}
-              </Text>
-            </Pressable>
+            <AccordionToggle
+              isOpen={isHistoryOpen}
+              onPress={toggleHistory}
+              summary={
+                isHistoryOpen
+                  ? 'Trazabilidad visible del turno.'
+                  : 'Consultar eventos recientes.'
+              }
+              title="Historial reciente"
+            />
 
             {isHistoryOpen ? (
               <View style={styles.accordionBody}>
-                <Pressable
+                <ActionButton
                   disabled={loading}
+                  label="Actualizar historial"
                   onPress={loadHistory}
-                  style={styles.inlineButton}
-                >
-                  <Text style={styles.inlineButtonText}>Actualizar</Text>
-                </Pressable>
+                  tone="secondary"
+                />
 
                 {historyItems.length === 0 ? (
                   <Text style={styles.hint}>
@@ -1283,35 +1376,35 @@ export default function App() {
               </View>
             </View>
 
+            <Text style={styles.subsectionTitle}>Registro de llamada</Text>
             <View style={styles.callGrid}>
-              <Pressable
+              <ActionButton
                 disabled={loading || !selectedUnit.canCall}
+                flex
+                label="Iniciada"
                 onPress={() => registerCall('initiated')}
-                style={[styles.callButton, styles.primaryButton]}
-              >
-                <Text style={styles.primaryButtonText}>Iniciada</Text>
-              </Pressable>
-              <Pressable
+              />
+              <ActionButton
                 disabled={loading || !selectedUnit.canCall}
+                flex
+                label="Contestada"
                 onPress={() => registerCall('answered')}
-                style={[styles.callButton, styles.successButton]}
-              >
-                <Text style={styles.primaryButtonText}>Contestada</Text>
-              </Pressable>
-              <Pressable
+                tone="success"
+              />
+              <ActionButton
                 disabled={loading || !selectedUnit.canCall}
+                flex
+                label="No contesta"
                 onPress={() => registerCall('no_answer')}
-                style={[styles.callButton, styles.secondaryButton]}
-              >
-                <Text style={styles.secondaryButtonText}>No contesta</Text>
-              </Pressable>
-              <Pressable
+                tone="secondary"
+              />
+              <ActionButton
                 disabled={loading || !selectedUnit.canCall}
+                flex
+                label="Rechazada"
                 onPress={() => registerCall('rejected')}
-                style={[styles.callButton, styles.rejectButton]}
-              >
-                <Text style={styles.rejectButtonText}>Rechazada</Text>
-              </Pressable>
+                tone="danger"
+              />
             </View>
 
             <View style={styles.divider} />
@@ -1351,16 +1444,12 @@ export default function App() {
                 value={visitReason}
               />
             </View>
-            <PaperButton
+            <ActionButton
               disabled={loading}
-              mode="contained"
+              label="Registrar visitante pendiente"
               onPress={registerVisitor}
-              buttonColor={palette.amber}
-              textColor={palette.ink}
-              style={styles.paperButton}
-            >
-              Registrar visitante pendiente
-            </PaperButton>
+              tone="warning"
+            />
 
             <View style={styles.divider} />
 
@@ -1448,26 +1537,19 @@ export default function App() {
                   style={styles.chatInput}
                   value={chatMessage}
                 />
-                <Pressable
+                <ActionButton
                   disabled={loading || !selectedUnit.canChat}
+                  label="Enviar"
                   onPress={sendMessage}
-                  style={[
-                    styles.chatSendButton,
-                    (loading || !selectedUnit.canChat) && styles.disabledButton,
-                  ]}
-                >
-                  <Text style={styles.chatSendText}>Enviar</Text>
-                </Pressable>
+                />
               </View>
 
-              <PaperButton
+              <ActionButton
                 disabled={loading || !selectedUnit.canChat}
-                mode="outlined"
+                label="Cargar historial del chat"
                 onPress={loadChatHistory}
-                style={styles.paperButton}
-              >
-                Cargar historial
-              </PaperButton>
+                tone="secondary"
+              />
             </View>
           </View>
         ) : null}
@@ -1591,9 +1673,17 @@ const styles = StyleSheet.create({
   },
   accordionHeader: {
     alignItems: 'center',
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  accordionTitleBlock: {
+    flex: 1,
   },
   accordionBody: {
     gap: 10,
@@ -1601,6 +1691,22 @@ const styles = StyleSheet.create({
   accordionIcon: {
     color: palette.primary,
     fontSize: 14,
+    fontWeight: '900',
+  },
+  accordionChip: {
+    backgroundColor: '#e6f3f2',
+  },
+  accordionChipText: {
+    color: palette.primaryDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  accordionChipOpen: {
+    backgroundColor: '#eef2ff',
+  },
+  accordionChipOpenText: {
+    color: palette.navy,
+    fontSize: 12,
     fontWeight: '900',
   },
   sessionBar: {
@@ -1691,6 +1797,25 @@ const styles = StyleSheet.create({
   },
   paperButton: {
     borderRadius: 8,
+  },
+  actionButton: {
+    borderRadius: 8,
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  actionButtonFlex: {
+    flex: 1,
+    minWidth: '47%',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 12,
+  },
+  cardActionRow: {
+    alignItems: 'flex-start',
+    marginTop: 12,
   },
   smallButton: {
     alignItems: 'center',

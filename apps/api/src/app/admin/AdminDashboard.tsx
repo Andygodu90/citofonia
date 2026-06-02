@@ -67,6 +67,18 @@ type AuditItem = {
   createdAt: string;
 };
 
+type ImportResult = {
+  dryRun?: boolean;
+  parsedRows?: number;
+  imported?: number;
+  createdResidents?: number;
+  updatedResidents?: number;
+  createdContacts?: number;
+  updatedContacts?: number;
+  skippedRows?: string[];
+  errors?: string[];
+};
+
 export function AdminDashboard() {
   const [apiToken, setApiToken] = useState("");
   const [username, setUsername] = useState("admin");
@@ -87,6 +99,10 @@ export function AdminDashboard() {
   const [residentName, setResidentName] = useState("");
   const [residentDocument, setResidentDocument] = useState("");
   const [residentPhone, setResidentPhone] = useState("");
+  const [residentCsv, setResidentCsv] = useState(
+    "bloque,apartamento,nombre,documento,telefono,email,tipo\n35,1C,Residente de prueba,123456789,3148337748,residente@example.com,resident",
+  );
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("Porteria123*");
   const [newRole, setNewRole] = useState("porter");
@@ -225,6 +241,39 @@ export function AdminDashboard() {
       await loadDashboard();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error creando residente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function importResidents(dryRun: boolean) {
+    setLoading(true);
+    setMessage(
+      dryRun ? "Validando CSV de residentes..." : "Importando residentes...",
+    );
+
+    try {
+      const data = await api<ImportResult>("/api/admin/import/residents", {
+        method: "POST",
+        body: JSON.stringify({
+          csv: residentCsv,
+          dryRun,
+        }),
+      });
+      setImportResult(data);
+      setMessage(
+        dryRun
+          ? `CSV validado. Filas legibles: ${data.parsedRows ?? 0}.`
+          : `Carga finalizada. Residentes procesados: ${data.imported ?? 0}.`,
+      );
+
+      if (!dryRun) {
+        await loadDashboard();
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Error importando residentes.",
+      );
     } finally {
       setLoading(false);
     }
@@ -486,6 +535,66 @@ export function AdminDashboard() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-bold uppercase text-blue-700">
+            Carga masiva
+          </p>
+          <h2 className="text-lg font-black">Importar residentes por CSV</h2>
+          <p className="text-sm text-zinc-600">
+            Usa encabezados: bloque, apartamento, nombre, documento, telefono,
+            email y tipo.
+          </p>
+        </div>
+
+        <textarea
+          className="mt-4 min-h-40 w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-sm"
+          onChange={(event) => setResidentCsv(event.target.value)}
+          value={residentCsv}
+        />
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            className="rounded-md border border-zinc-300 px-4 py-2 font-bold"
+            disabled={loading || !apiToken}
+            onClick={() => importResidents(true)}
+          >
+            Validar CSV
+          </button>
+          <button
+            className="rounded-md bg-blue-700 px-4 py-2 font-bold text-white"
+            disabled={loading || !apiToken}
+            onClick={() => importResidents(false)}
+          >
+            Cargar residentes
+          </button>
+        </div>
+
+        {importResult ? (
+          <div className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-700">
+            <p className="font-black text-zinc-950">
+              {importResult.dryRun ? "Resultado de validacion" : "Resultado de carga"}
+            </p>
+            <p>
+              Filas: {importResult.parsedRows ?? importResult.imported ?? 0} -
+              Creados: {importResult.createdResidents ?? 0} - Actualizados:{" "}
+              {importResult.updatedResidents ?? 0}
+            </p>
+            <p>
+              Contactos creados: {importResult.createdContacts ?? 0} -
+              Contactos actualizados: {importResult.updatedContacts ?? 0}
+            </p>
+            {[...(importResult.errors ?? []), ...(importResult.skippedRows ?? [])]
+              .slice(0, 8)
+              .map((item) => (
+                <p className="mt-1 text-red-700" key={item}>
+                  {item}
+                </p>
+              ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4">

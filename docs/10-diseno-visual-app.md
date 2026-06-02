@@ -15,6 +15,8 @@ Se instalo React Native Paper como libreria visual base para mejorar la aparienc
 - `TextInput` para campos destacados.
 - `Chip` para estados/perfiles.
 - Interfaz de chat tipo WhatsApp con cabecera, burbujas, hora y barra de escritura.
+- Sistema reutilizable de botones de accion para que aprobar, rechazar, registrar, buscar y actualizar se vean coherentes.
+- Encabezados de acordeon con chips de estado `Abrir` y `Cerrar`.
 - Paleta centralizada.
 - Cabecera de marca.
 - Tarjetas tipo dashboard.
@@ -34,6 +36,7 @@ Esta decision mantiene compatibilidad con Expo Go y reduce el riesgo de romper l
 - Tarjetas con borde suave y sombra ligera.
 - Textos grandes y legibles para uso en porteria.
 - Chat con burbujas verdes para mensajes salientes y blancas para mensajes entrantes.
+- Botones agrupados por proceso para reducir errores operativos en porteria.
 
 ## Librerias candidatas para una siguiente fase
 
