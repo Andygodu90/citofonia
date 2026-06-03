@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -177,6 +178,22 @@ type ActionButtonProps = {
   flex?: boolean;
 };
 
+type IconName = keyof typeof Ionicons.glyphMap;
+
+type IconBadgeProps = {
+  name: IconName;
+  tone?: 'blue' | 'green' | 'amber' | 'neutral';
+  size?: 'sm' | 'md' | 'lg';
+};
+
+type ShortcutCardProps = {
+  icon: IconName;
+  title: string;
+  description: string;
+  tone?: 'blue' | 'green' | 'amber' | 'neutral';
+  onPress?: () => void;
+};
+
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
     return {
@@ -239,6 +256,60 @@ function ActionButton({
     >
       {label}
     </PaperButton>
+  );
+}
+
+function IconBadge({ name, tone = 'blue', size = 'md' }: IconBadgeProps) {
+  const sizeStyle =
+    size === 'lg'
+      ? styles.iconBadgeLarge
+      : size === 'sm'
+        ? styles.iconBadgeSmall
+        : null;
+
+  const iconSize = size === 'lg' ? 34 : size === 'sm' ? 18 : 24;
+
+  return (
+    <View style={[styles.iconBadge, styles[`${tone}IconBadge`], sizeStyle]}>
+      <Ionicons
+        color={
+          tone === 'green'
+            ? palette.green
+            : tone === 'amber'
+              ? '#b7791f'
+              : tone === 'neutral'
+                ? palette.muted
+                : palette.primary
+        }
+        name={name}
+        size={iconSize}
+      />
+    </View>
+  );
+}
+
+function ShortcutCard({
+  icon,
+  title,
+  description,
+  tone = 'blue',
+  onPress,
+}: ShortcutCardProps) {
+  return (
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
+      style={styles.shortcutCard}
+    >
+      <IconBadge name={icon} tone={tone} />
+      <View style={styles.shortcutTextBlock}>
+        <Text style={styles.shortcutTitle}>{title}</Text>
+        <Text style={styles.shortcutDescription}>{description}</Text>
+      </View>
+      {onPress ? (
+        <Ionicons color={palette.primary} name="chevron-forward" size={18} />
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -1028,7 +1099,8 @@ export default function App() {
         {!session ? (
           <View style={styles.loginShell}>
             <View style={styles.loginBrandBlock}>
-              <Text style={styles.loginEyebrow}>Citofonia residencial</Text>
+              <IconBadge name="business-outline" size="lg" />
+              <Text style={styles.loginTitleLarge}>Citofonia</Text>
               <Text style={styles.loginBrand}>ARCADAS DE SAN ISIDRO</Text>
               <View style={styles.loginDivider} />
             </View>
@@ -1082,15 +1154,27 @@ export default function App() {
           </View>
         ) : (
           <View style={styles.sessionBar}>
-            <View>
-              <Text style={styles.sessionLabel}>Sesion activa</Text>
-              <Text style={styles.sessionUser}>
-                {session.username} - {session.role}
-              </Text>
+            <View style={styles.sessionIdentity}>
+              <IconBadge
+                name={
+                  isResidentSession
+                    ? 'home-outline'
+                    : isPorterSession
+                      ? 'business-outline'
+                      : 'shield-checkmark-outline'
+                }
+                size="sm"
+              />
+              <View>
+                <Text style={styles.sessionLabel}>
+                  {isResidentSession ? 'Mi hogar' : 'Porteria'}
+                </Text>
+                <Text style={styles.sessionUser}>
+                  {session.username} - {session.role}
+                </Text>
+              </View>
             </View>
-            <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
-              {session.role}
-            </Chip>
+            <Ionicons color={palette.navy} name="notifications-outline" size={20} />
             <ActionButton label="Salir" onPress={logout} tone="danger" />
           </View>
         )}
@@ -1103,33 +1187,62 @@ export default function App() {
 
         {isPorterSession ? (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Resumen de porteria</Text>
+            <View style={styles.panelHeadingRow}>
+              <View>
+                <Text style={styles.panelTitle}>Porteria</Text>
+                <Text style={styles.hint}>Operacion del turno actual</Text>
+              </View>
+              <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+                En servicio
+              </Chip>
+            </View>
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
+                <IconBadge name="person-add-outline" size="sm" tone="green" />
                 <Text style={styles.statValue}>{pendingAuthorizations.length}</Text>
                 <Text style={styles.statLabel}>Pendientes</Text>
               </View>
               <View style={styles.statBox}>
+                <IconBadge name="log-in-outline" size="sm" />
                 <Text style={styles.statValue}>{movements.pendingEntry.length}</Text>
                 <Text style={styles.statLabel}>Por entrar</Text>
               </View>
               <View style={styles.statBox}>
+                <IconBadge name="log-out-outline" size="sm" tone="amber" />
                 <Text style={styles.statValue}>{movements.pendingExit.length}</Text>
                 <Text style={styles.statLabel}>Por salir</Text>
               </View>
+            </View>
+            <View style={styles.shortcutGrid}>
+              <ShortcutCard
+                description="Busca apartamentos y contacta residentes."
+                icon="search-outline"
+                title="Buscar unidad"
+              />
+              <ShortcutCard
+                description="Consulta registros recientes."
+                icon="time-outline"
+                title="Historial"
+                tone="neutral"
+              />
             </View>
           </View>
         ) : null}
 
         {isResidentSession ? (
           <View style={styles.panel}>
-            <Text style={styles.label}>Panel de residente</Text>
-            <Text style={styles.selectedTitle}>
-              {residentDashboard?.resident.unitLabel ?? 'Unidad residencial'}
-            </Text>
-            <Text style={styles.hint}>
-              {residentDashboard?.resident.propertyName ?? 'Conjunto residencial'}
-            </Text>
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.label}>Mi hogar</Text>
+                <Text style={styles.selectedTitle}>
+                  {residentDashboard?.resident.unitLabel ?? 'Unidad residencial'}
+                </Text>
+                <Text style={styles.hint}>
+                  {residentDashboard?.resident.propertyName ?? 'Conjunto residencial'}
+                </Text>
+              </View>
+              <IconBadge name="home-outline" size="lg" />
+            </View>
 
             <ActionButton
               disabled={loading}
@@ -1137,6 +1250,20 @@ export default function App() {
               onPress={() => loadResidentDashboard()}
               tone="secondary"
             />
+
+            <View style={styles.shortcutGrid}>
+              <ShortcutCard
+                description="Invita a un visitante."
+                icon="person-add-outline"
+                title="Nuevo visitante"
+                tone="green"
+              />
+              <ShortcutCard
+                description="Ver registros de visitas."
+                icon="time-outline"
+                title="Historial"
+              />
+            </View>
 
             <View style={styles.divider} />
 
@@ -1715,6 +1842,28 @@ export default function App() {
           </View>
         ) : null}
         </ScrollView>
+        {session ? (
+          <View style={styles.bottomNav}>
+            <View style={styles.bottomNavItemActive}>
+              <Ionicons color={palette.primary} name="home" size={20} />
+              <Text style={styles.bottomNavTextActive}>Inicio</Text>
+            </View>
+            <View style={styles.bottomNavItem}>
+              <Ionicons
+                color={palette.muted}
+                name={isResidentSession ? 'mail-outline' : 'people-outline'}
+                size={20}
+              />
+              <Text style={styles.bottomNavText}>
+                {isResidentSession ? 'Invitaciones' : 'Porteria'}
+              </Text>
+            </View>
+            <View style={styles.bottomNavItem}>
+              <Ionicons color={palette.muted} name="settings-outline" size={20} />
+              <Text style={styles.bottomNavText}>Ajustes</Text>
+            </View>
+          </View>
+        ) : null}
       </SafeAreaView>
     </PaperProvider>
   );
@@ -1732,7 +1881,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     maxWidth: 1120,
     padding: 16,
-    paddingBottom: 36,
+    paddingBottom: 96,
     width: '100%',
   },
   loginContent: {
@@ -1768,9 +1917,17 @@ const styles = StyleSheet.create({
   },
   loginBrand: {
     color: palette.ink,
-    fontSize: 24,
+    fontSize: 13,
     fontWeight: '900',
-    lineHeight: 30,
+    lineHeight: 18,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  loginTitleLarge: {
+    color: palette.ink,
+    fontSize: 34,
+    fontWeight: '900',
+    lineHeight: 40,
     textAlign: 'center',
   },
   loginDivider: {
@@ -1806,6 +1963,98 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 4,
     textAlign: 'center',
+  },
+  iconBadge: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  iconBadgeSmall: {
+    height: 34,
+    width: 34,
+  },
+  iconBadgeLarge: {
+    borderRadius: 8,
+    height: 64,
+    width: 64,
+  },
+  blueIconBadge: {
+    backgroundColor: '#eaf4ff',
+  },
+  greenIconBadge: {
+    backgroundColor: '#e8f7ef',
+  },
+  amberIconBadge: {
+    backgroundColor: '#fff3d5',
+  },
+  neutralIconBadge: {
+    backgroundColor: '#f1f5f9',
+  },
+  shortcutGrid: {
+    gap: 10,
+    marginTop: 4,
+  },
+  shortcutCard: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 76,
+    padding: 12,
+  },
+  shortcutTextBlock: {
+    flex: 1,
+  },
+  shortcutTitle: {
+    color: palette.ink,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  shortcutDescription: {
+    color: palette.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  bottomNav: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderTopColor: palette.line,
+    borderTopWidth: 1,
+    bottom: 0,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'space-around',
+    left: 0,
+    paddingBottom: 10,
+    paddingTop: 8,
+    position: 'absolute',
+    right: 0,
+  },
+  bottomNavItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  bottomNavItemActive: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  bottomNavText: {
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bottomNavTextActive: {
+    color: palette.primary,
+    fontSize: 11,
+    fontWeight: '900',
   },
   headerCard: {
     backgroundColor: palette.surface,
@@ -1912,6 +2161,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
+  panelHeadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  panelHeadingText: {
+    flex: 1,
+  },
   accordionHeader: {
     alignItems: 'center',
     backgroundColor: '#f6faff',
@@ -1961,6 +2219,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
     padding: 16,
+  },
+  sessionIdentity: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
   },
   roleChip: {
     backgroundColor: '#eaf4ff',
