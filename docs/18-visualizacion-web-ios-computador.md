@@ -80,7 +80,9 @@ http://192.168.80.27:3000
 
 ## Configuracion de URL dentro de la app
 
-Cuando se abre desde navegador, la app intenta completar automaticamente la URL de la API con el mismo host:
+La URL de la API ya no se muestra en la pantalla de inicio de sesion. Queda configurada internamente para evitar que porteria tenga que cambiarla manualmente.
+
+Cuando se abre desde navegador, la app completa automaticamente la URL de la API con el mismo host:
 
 ```text
 http://HOST_DEL_NAVEGADOR:3000
@@ -91,7 +93,13 @@ Ejemplos:
 - Si abres `http://localhost:8082`, usara `http://localhost:3000`.
 - Si abres `http://192.168.80.27:8082`, usara `http://192.168.80.27:3000`.
 
-Si algo no responde, se puede escribir manualmente la URL de API en la pantalla de login.
+Cuando se abra como app nativa Android, usara por defecto:
+
+```text
+http://192.168.80.27:3000
+```
+
+Si la IP del computador cambia, se debe actualizar la IP fija en `apps/mobile/App.tsx` o configurar una URL publica cuando el backend este desplegado.
 
 ## Usuarios de prueba
 

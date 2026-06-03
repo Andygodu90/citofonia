@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,7 +29,7 @@ function getDefaultApiUrl() {
     return `http://${hostname}:3000`;
   }
 
-  return 'http://localhost:3000';
+  return 'http://192.168.80.27:3000';
 }
 
 const DEFAULT_API_URL = getDefaultApiUrl();
@@ -275,7 +275,6 @@ function AccordionToggle({
 }
 
 export default function App() {
-  const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [username, setUsername] = useState('porteria');
   const [password, setPassword] = useState('Porteria123*');
   const [session, setSession] = useState<UserSession | null>(null);
@@ -317,7 +316,7 @@ export default function App() {
     text: 'Busca por bloque o apartamento. Ejemplo: 31, 1A, 45 5D.',
   });
 
-  const normalizedApiUrl = useMemo(() => apiUrl.replace(/\/$/, ''), [apiUrl]);
+  const normalizedApiUrl = DEFAULT_API_URL.replace(/\/$/, '');
   const isPorterSession = Boolean(
     session && ['porter', 'admin', 'superadmin'].includes(session.role),
   );
@@ -1018,25 +1017,6 @@ export default function App() {
           </View>
           </Card.Content>
         </Card>
-
-        <View style={styles.utilityPanel}>
-          <Text style={styles.label}>Conexion API</Text>
-          <PaperTextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            dense
-            mode="outlined"
-            onChangeText={setApiUrl}
-            label="URL del backend"
-            outlineStyle={styles.paperInputOutline}
-            style={styles.paperInput}
-            value={apiUrl}
-          />
-          <Text style={styles.hint}>
-            En Expo Go con celular fisico usa la IP del computador en la misma
-            red.
-          </Text>
-        </View>
 
         {!session ? (
           <View style={styles.panel}>

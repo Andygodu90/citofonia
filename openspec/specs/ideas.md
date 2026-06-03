@@ -33,6 +33,7 @@ Ya esta implementado:
 - Smoke test funcional.
 - Configuracion base para EAS Build Android.
 - Visualizacion web de la app movil desde computador o iPhone usando Expo Web.
+- Conexion API oculta para el usuario final, con deteccion automatica en web y URL fija local para Android.
 - Documentacion de piloto, despliegue y WhatsApp.
 
 Bloqueos reales que no dependen solo de codigo:
