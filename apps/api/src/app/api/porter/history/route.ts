@@ -9,6 +9,8 @@ type HistoryRow = {
   title: string;
   subtitle: string;
   status: string;
+  direction?: "inbound" | "outbound";
+  read_at?: string | null;
   occurred_at: string;
 };
 
@@ -29,6 +31,8 @@ export async function GET(request: Request) {
           v.full_name as title,
           u.display_label || ' - ' || coalesce(v.visitor_type, 'visitante') as subtitle,
           ae.status,
+          null::text as direction,
+          null::timestamptz as read_at,
           ae.occurred_at
         from access_events ae
         join residential_units u on u.id = ae.unit_id
@@ -48,6 +52,8 @@ export async function GET(request: Request) {
           end as title,
           u.display_label || ' - ' || v.full_name as subtitle,
           ae.status,
+          null::text as direction,
+          null::timestamptz as read_at,
           ae.occurred_at
         from access_events ae
         join residential_units u on u.id = ae.unit_id
@@ -64,6 +70,8 @@ export async function GET(request: Request) {
           'Llamada registrada' as title,
           u.display_label as subtitle,
           cl.status,
+          null::text as direction,
+          null::timestamptz as read_at,
           cl.started_at as occurred_at
         from call_logs cl
         join residential_units u on u.id = cl.unit_id
@@ -76,7 +84,9 @@ export async function GET(request: Request) {
           'message' as type,
           left(wm.body, 60) as title,
           u.display_label as subtitle,
-          wt.status,
+          wm.provider_status as status,
+          wm.direction,
+          wm.read_at,
           wm.sent_at as occurred_at
         from whatsapp_messages wm
         join whatsapp_threads wt on wt.id = wm.thread_id
@@ -96,6 +106,8 @@ export async function GET(request: Request) {
       title: row.title,
       subtitle: row.subtitle,
       status: row.status,
+      direction: row.direction,
+      readAt: row.read_at,
       occurredAt: row.occurred_at,
     })),
   });

@@ -136,6 +136,8 @@ type HistoryItem = {
   subtitle: string;
   status: string;
   occurredAt: string;
+  direction?: 'inbound' | 'outbound';
+  readAt?: string | null;
 };
 
 type MovementItem = {
@@ -770,11 +772,19 @@ export default function App() {
   const [activeCall, setActiveCall] = useState<CallSession | null>(null);
   const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
   const [packageUnitQuery, setPackageUnitQuery] = useState('');
+  const [packageUnitSuggestions, setPackageUnitSuggestions] = useState<
+    UnitSearchResult[]
+  >([]);
   const [packageRecipientName, setPackageRecipientName] = useState('');
   const [packageType, setPackageType] = useState('');
   const [isActiveVisitorsOpen, setIsActiveVisitorsOpen] = useState(false);
   const [isCallHistoryOpen, setIsCallHistoryOpen] = useState(false);
   const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
+  const [isPackageHistoryOpen, setIsPackageHistoryOpen] = useState(false);
+  const [packageHistoryQuery, setPackageHistoryQuery] = useState('');
+  const [packageHistoryPage, setPackageHistoryPage] = useState(1);
+  const [selectedActiveVisitor, setSelectedActiveVisitor] =
+    useState<MovementItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     tone: 'info',
@@ -809,7 +819,30 @@ export default function App() {
     )
     .slice(0, 5);
   const activePackages = packageItems.filter((item) => item.status !== 'delivered');
-  const messageAlerts = historyItems.filter((item) => item.type === 'message');
+  const filteredPackageHistory = packageItems.filter((item) => {
+    const term = packageHistoryQuery.trim().toLowerCase();
+
+    if (!term) {
+      return true;
+    }
+
+    return item.unitLabel.toLowerCase().includes(term);
+  });
+  const packageHistoryPageSize = 10;
+  const packageHistoryTotalPages = Math.max(
+    1,
+    Math.ceil(filteredPackageHistory.length / packageHistoryPageSize),
+  );
+  const pagedPackageHistory = filteredPackageHistory.slice(
+    (packageHistoryPage - 1) * packageHistoryPageSize,
+    packageHistoryPage * packageHistoryPageSize,
+  );
+  const messageAlerts = historyItems.filter(
+    (item) =>
+      item.type === 'message' &&
+      item.direction === 'inbound' &&
+      !item.readAt,
+  );
   const porterAlerts: PorterAlert[] = [
     ...pendingAuthorizations.map((item) => ({
       id: `pending-${item.id}`,
@@ -842,6 +875,9 @@ export default function App() {
   const unreadMessageCount = messageAlerts.filter(
     (item) => !readMessageIds.includes(item.id),
   ).length;
+  const unreadMessageAlerts = messageAlerts.filter(
+    (item) => !readMessageIds.includes(item.id),
+  );
   const porterAlertIds = porterAlerts.map((item) => item.id).join('|');
 
   useEffect(() => {
@@ -978,8 +1014,21 @@ export default function App() {
   }
 
   function openMessageHub() {
+    setMessageQuery('');
+    setMessageUnits([]);
+    setSelectedSummary(null);
+    setSelectedUnit(null);
     setActivePorterView('messageHub');
     void loadHistory();
+  }
+
+  function openUnitSearch() {
+    setActivePorterView('search');
+    setSelectedSummary(null);
+    setSelectedUnit(null);
+    setUnits([]);
+    setQuery('');
+    setHasUnitSearchResults(false);
   }
 
   function handleAlertPress(alert: PorterAlert) {
@@ -1325,6 +1374,10 @@ export default function App() {
     setNotice({ tone: 'info', text: 'Buscando chat relacionado...' });
 
     try {
+      await request(`/api/porter/messages/${item.id}/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({}),
+      });
       const searchQuery = encodeURIComponent(item.subtitle);
       const data = await request<{ units: UnitSearchResult[] }>(
         `/api/porter/units?query=${searchQuery}`,
@@ -1972,6 +2025,7 @@ export default function App() {
 
       setPackageItems((current) => [data.package, ...current]);
       setPackageUnitQuery('');
+      setPackageUnitSuggestions([]);
       setPackageRecipientName('');
       setPackageType('');
       setIsPackageFormOpen(false);
@@ -1985,6 +2039,29 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function updatePackageUnitQuery(text: string) {
+    setPackageUnitQuery(text);
+
+    if (!text.trim()) {
+      setPackageUnitSuggestions([]);
+      return;
+    }
+
+    try {
+      const data = await request<{ units: UnitSearchResult[] }>(
+        `/api/porter/units?query=${encodeURIComponent(text.trim())}`,
+      );
+      setPackageUnitSuggestions(data.units.slice(0, 8));
+    } catch {
+      setPackageUnitSuggestions([]);
+    }
+  }
+
+  function selectPackageUnit(unit: UnitSearchResult) {
+    setPackageUnitQuery(unit.displayLabel);
+    setPackageUnitSuggestions([]);
   }
 
   async function markPackageDelivered(id: string) {
@@ -2227,7 +2304,7 @@ export default function App() {
                 description="Busca apartamentos y contacta residentes."
                 icon="search-outline"
                 onPress={() => {
-                  setActivePorterView('search');
+                  openUnitSearch();
                 }}
                 title="Buscar unidad"
               />
@@ -2548,13 +2625,7 @@ export default function App() {
                         <ActionButton
                           disabled={loading}
                           label="Registrar salida"
-                          onPress={() =>
-                            confirmAction(
-                              'Registrar salida',
-                              `Confirmar salida de ${item.visitorName}?`,
-                              () => void registerMovement(item.authorizationId, 'exit'),
-                            )
-                          }
+                          onPress={() => void registerMovement(item.authorizationId, 'exit')}
                           tone="danger"
                         />
                       </View>
@@ -2713,10 +2784,7 @@ export default function App() {
             </View>
             <ActionButton
               label="Buscar unidad para registrar"
-              onPress={() => {
-                setActivePorterView('search');
-                setHasUnitSearchResults(false);
-              }}
+              onPress={openUnitSearch}
             />
             <AccordionToggle
               isOpen={isActiveVisitorsOpen}
@@ -2734,13 +2802,57 @@ export default function App() {
                   <Text style={styles.hint}>No hay visitantes activos registrados.</Text>
                 ) : (
                   movements.pendingExit.map((item) => (
-                    <View key={`visitor-dashboard-${item.authorizationId}`} style={styles.historyItem}>
+                    <Pressable
+                      key={`visitor-dashboard-${item.authorizationId}`}
+                      onPress={() => setSelectedActiveVisitor(item)}
+                      style={styles.historyItem}
+                    >
                       <Text style={styles.historyType}>activo</Text>
                       <Text style={styles.historyTitle}>{item.visitorName}</Text>
                       <Text style={styles.historyMeta}>{item.unitLabel} - pendiente salida</Text>
-                    </View>
+                      <View style={styles.cardActionRow}>
+                        <ActionButton
+                          compact
+                          disabled={loading}
+                          label="Registrar salida"
+                          onPress={() => void registerMovement(item.authorizationId, 'exit')}
+                          tone="danger"
+                        />
+                      </View>
+                    </Pressable>
                   ))
                 )}
+                {selectedActiveVisitor ? (
+                  <View style={styles.detailPanel}>
+                    <Text style={styles.historyType}>Detalle del visitante</Text>
+                    <Text style={styles.historyTitle}>
+                      {selectedActiveVisitor.visitorName}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      Unidad: {selectedActiveVisitor.unitLabel}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      Tipo: {selectedActiveVisitor.visitorType}
+                    </Text>
+                    {selectedActiveVisitor.vehiclePlate ? (
+                      <Text style={styles.historyMeta}>
+                        Placa: {selectedActiveVisitor.vehiclePlate}
+                      </Text>
+                    ) : null}
+                    {selectedActiveVisitor.photoUrl ? (
+                      <Image
+                        source={{ uri: selectedActiveVisitor.photoUrl }}
+                        style={styles.visitorPhotoPreviewLarge}
+                      />
+                    ) : null}
+                    <ActionButton
+                      compact
+                      label="Cerrar detalle"
+                      onPress={() => setSelectedActiveVisitor(null)}
+                      tone="secondary"
+                    />
+                  </View>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -2776,11 +2888,25 @@ export default function App() {
               <>
                 <Text style={styles.subsectionTitle}>Registrar recibido</Text>
                 <TextInput
-                  onChangeText={setPackageUnitQuery}
-                  placeholder={selectedUnit ? selectedUnit.displayLabel : 'Unidad. Ejemplo: 35 1C'}
+                  onChangeText={(text) => void updatePackageUnitQuery(text)}
+                  placeholder="Ejemplo: 35 1C"
                   style={styles.input}
                   value={packageUnitQuery}
                 />
+                {packageUnitSuggestions.length > 0 ? (
+                  <View style={styles.suggestionList}>
+                    {packageUnitSuggestions.map((item) => (
+                      <Pressable
+                        key={`package-suggestion-${item.id}`}
+                        onPress={() => selectPackageUnit(item)}
+                        style={styles.suggestionItem}
+                      >
+                        <Text style={styles.unitTitle}>{item.displayLabel}</Text>
+                        <Text style={styles.unitMeta}>Seleccionar unidad</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 <TextInput
                   onChangeText={setPackageRecipientName}
                   placeholder="Recibe o destinatario (opcional)"
@@ -2796,17 +2922,17 @@ export default function App() {
                 <ActionButton disabled={loading} label="Guardar paquete" onPress={registerPackage} />
               </>
             ) : null}
-            <Text style={styles.subsectionTitle}>Paquetes recientes</Text>
-            {packageItems.length === 0 ? (
+            <Text style={styles.subsectionTitle}>Paquetes en porteria</Text>
+            {activePackages.length === 0 ? (
               <View style={styles.emptyState}>
                 <IconBadge name="cube-outline" size="lg" tone="green" />
-                <Text style={styles.emptyStateTitle}>Sin paquetes registrados</Text>
+                <Text style={styles.emptyStateTitle}>Sin paquetes en porteria</Text>
                 <Text style={styles.emptyStateText}>
-                  Registra el paquete recibido y el sistema conservara la trazabilidad.
+                  Los paquetes pendientes de entrega apareceran en esta lista.
                 </Text>
               </View>
             ) : (
-              packageItems.map((item) => (
+              activePackages.map((item) => (
                 <View key={item.id} style={styles.historyItem}>
                   <Text style={styles.historyType}>{item.status}</Text>
                   <Text style={styles.historyTitle}>{item.unitLabel}</Text>
@@ -2833,6 +2959,72 @@ export default function App() {
                 </View>
               ))
             )}
+            <ActionButton
+              compact
+              label={isPackageHistoryOpen ? 'Ocultar historial' : 'Ver historial'}
+              onPress={() => {
+                setIsPackageHistoryOpen((current) => !current);
+                setPackageHistoryQuery('');
+                setPackageHistoryPage(1);
+              }}
+              tone="secondary"
+            />
+            {isPackageHistoryOpen ? (
+              <View style={styles.accordionBody}>
+                <PaperTextInput
+                  autoCapitalize="characters"
+                  dense
+                  mode="outlined"
+                  onChangeText={(text) => {
+                    setPackageHistoryQuery(text);
+                    setPackageHistoryPage(1);
+                  }}
+                  label="Filtrar historial por unidad"
+                  outlineStyle={styles.paperInputOutline}
+                  placeholder="Ejemplo: 35 1C"
+                  style={styles.paperInput}
+                  value={packageHistoryQuery}
+                />
+                {pagedPackageHistory.length === 0 ? (
+                  <Text style={styles.hint}>No hay paquetes para ese filtro.</Text>
+                ) : (
+                  pagedPackageHistory.map((item) => (
+                    <View key={`package-history-${item.id}`} style={styles.historyItem}>
+                      <Text style={styles.historyType}>{item.status}</Text>
+                      <Text style={styles.historyTitle}>{item.unitLabel}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.packageType} - {item.recipientName}
+                      </Text>
+                    </View>
+                  ))
+                )}
+                <View style={styles.paginationRow}>
+                  <ActionButton
+                    compact
+                    disabled={packageHistoryPage <= 1}
+                    label="Anterior"
+                    onPress={() =>
+                      setPackageHistoryPage((current) => Math.max(1, current - 1))
+                    }
+                    tone="secondary"
+                  />
+                  <Text style={styles.paginationText}>
+                    {packageHistoryPage} / {packageHistoryTotalPages}
+                  </Text>
+                  <ActionButton
+                    compact
+                    disabled={packageHistoryPage >= packageHistoryTotalPages}
+                    label="Siguiente"
+                    onPress={() =>
+                      setPackageHistoryPage((current) =>
+                        Math.min(packageHistoryTotalPages, current + 1),
+                      )
+                    }
+                    tone="secondary"
+                  />
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -2882,7 +3074,7 @@ export default function App() {
               />
             ) : null}
             <Text style={styles.subsectionTitle}>Chats pendientes por leer</Text>
-            {messageAlerts.length === 0 ? (
+            {unreadMessageAlerts.length === 0 ? (
               <View style={styles.emptyState}>
                 <IconBadge name="chatbubble-ellipses-outline" size="lg" />
                 <Text style={styles.emptyStateTitle}>Sin chats pendientes</Text>
@@ -2891,7 +3083,7 @@ export default function App() {
                 </Text>
               </View>
             ) : (
-              messageAlerts.map((item) => (
+              unreadMessageAlerts.map((item) => (
                 <Pressable
                   key={`message-alert-${item.id}`}
                   onPress={() => void openChatFromHistory(item)}
@@ -2977,7 +3169,7 @@ export default function App() {
                   <ActionButton
                     compact
                     label="Buscar"
-                    onPress={() => setActivePorterView('search')}
+                    onPress={openUnitSearch}
                     tone="secondary"
                   />
                 </View>
@@ -3064,6 +3256,7 @@ export default function App() {
                     <Ionicons color={palette.primary} name="call" size={36} />
                   </View>
                   <Text style={styles.callTitle}>Llamada protegida</Text>
+                  <Text style={styles.callUnitLabel}>{selectedUnit.displayLabel}</Text>
                   <Text style={styles.callNumber}>Numero: *** *** **48</Text>
                   <Text style={styles.callStatus}>
                     {activeCall?.status === 'ended'
@@ -3167,6 +3360,15 @@ export default function App() {
                       {item.photoUrl ? (
                         <Image source={{ uri: item.photoUrl }} style={styles.visitorPhotoPreview} />
                       ) : null}
+                      <View style={styles.cardActionRow}>
+                        <ActionButton
+                          compact
+                          disabled={loading}
+                          label="Registrar salida"
+                          onPress={() => void registerMovement(item.authorizationId, 'exit')}
+                          tone="danger"
+                        />
+                      </View>
                     </View>
                   ))
                 )}
@@ -3396,10 +3598,7 @@ export default function App() {
               <Text style={activePorterView === 'home' ? styles.bottomNavTextActive : styles.bottomNavText}>Inicio</Text>
             </Pressable>
             <Pressable
-              onPress={() => {
-                setActivePorterView(selectedUnit ? 'unit' : 'search');
-                setHasUnitSearchResults(false);
-              }}
+              onPress={openUnitSearch}
               style={
                 ['search', 'unit', 'calls'].includes(activePorterView)
                   ? styles.bottomNavItemActive
@@ -3493,6 +3692,10 @@ export default function App() {
             <Pressable
               onPress={() => {
                 setActivePorterView('packages');
+                setPackageUnitQuery('');
+                setPackageUnitSuggestions([]);
+                setPackageHistoryQuery('');
+                setPackageHistoryPage(1);
                 void loadPackages();
               }}
               style={activePorterView === 'packages' ? styles.bottomNavItemActive : styles.bottomNavItem}
@@ -4375,6 +4578,14 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     padding: 12,
   },
+  detailPanel: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
+  },
   alertItem: {
     backgroundColor: '#fff8e7',
     borderBottomColor: palette.line,
@@ -4486,6 +4697,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
+  callUnitLabel: {
+    color: palette.ink,
+    fontFamily: appFonts.medium,
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   callNumber: {
     color: palette.muted,
     fontFamily: appFonts.medium,
@@ -4544,6 +4762,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
     textAlign: 'center',
+  },
+  suggestionList: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    borderBottomColor: palette.line,
+    borderBottomWidth: 1,
+    padding: 12,
+  },
+  paginationRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  paginationText: {
+    color: palette.ink,
+    fontFamily: appFonts.medium,
+    fontSize: 13,
+    fontWeight: '900',
   },
   button: {
     alignItems: 'center',
