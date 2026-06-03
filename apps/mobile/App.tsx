@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as ImagePicker from 'expo-image-picker';
+import * as Notifications from 'expo-notifications';
 import {
   Poppins_300Light,
   Poppins_500Medium,
@@ -20,6 +21,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  Vibration,
   View,
 } from 'react-native';
 import {
@@ -87,6 +89,15 @@ const paperTheme = {
   },
 };
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 type UnitSearchResult = {
   id: string;
   propertyName: string;
@@ -132,6 +143,8 @@ type MovementItem = {
   visitorName: string;
   visitorType: string;
   unitLabel: string;
+  updatedAt?: string;
+  enteredAt?: string;
   vehiclePlate?: string | null;
   photoUrl?: string | null;
 };
@@ -197,6 +210,15 @@ type PackageItem = {
   status: string;
   createdAt: string;
   deliveredAt?: string | null;
+};
+
+type PorterAlert = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  targetView: PorterView;
+  tone: 'amber' | 'blue' | 'green';
 };
 
 type ResidentDashboard = {
@@ -270,12 +292,13 @@ type PorterView =
   | 'visitors'
   | 'visitorDashboard'
   | 'calls'
+  | 'messageHub'
   | 'messages'
   | 'movements'
   | 'pending'
   | 'history'
   | 'packages'
-  | 'settings';
+  | 'alerts';
 
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
@@ -304,9 +327,9 @@ function getActionButtonColors(tone: ActionButtonTone) {
 
   if (tone === 'danger') {
     return {
-      buttonColor: '#ffffff',
-      mode: 'outlined' as const,
-      textColor: palette.red,
+      buttonColor: palette.red,
+      mode: 'contained' as const,
+      textColor: '#ffffff',
     };
   }
 
@@ -723,6 +746,11 @@ export default function App() {
   );
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [chatVisibleCount, setChatVisibleCount] = useState(15);
+  const [messageQuery, setMessageQuery] = useState('');
+  const [messageUnits, setMessageUnits] = useState<UnitSearchResult[]>([]);
+  const [readMessageIds, setReadMessageIds] = useState<string[]>([]);
+  const [readAlertIds, setReadAlertIds] = useState<string[]>([]);
+  const [lastNotificationKey, setLastNotificationKey] = useState('');
   const [residentDashboard, setResidentDashboard] =
     useState<ResidentDashboard | null>(null);
   const [residentVisitorName, setResidentVisitorName] = useState(
@@ -744,6 +772,9 @@ export default function App() {
   const [packageUnitQuery, setPackageUnitQuery] = useState('');
   const [packageRecipientName, setPackageRecipientName] = useState('');
   const [packageType, setPackageType] = useState('');
+  const [isActiveVisitorsOpen, setIsActiveVisitorsOpen] = useState(false);
+  const [isCallHistoryOpen, setIsCallHistoryOpen] = useState(false);
+  const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     tone: 'info',
@@ -778,6 +809,40 @@ export default function App() {
     )
     .slice(0, 5);
   const activePackages = packageItems.filter((item) => item.status !== 'delivered');
+  const messageAlerts = historyItems.filter((item) => item.type === 'message');
+  const porterAlerts: PorterAlert[] = [
+    ...pendingAuthorizations.map((item) => ({
+      id: `pending-${item.id}`,
+      title: 'Ingreso pendiente por porteria',
+      body: `${item.visitorName} para ${item.unitLabel}`,
+      createdAt: item.createdAt,
+      targetView: 'pending' as PorterView,
+      tone: 'amber' as const,
+    })),
+    ...movements.pendingEntry.map((item) => ({
+      id: `entry-${item.authorizationId}`,
+      title: 'Visitante autorizado para entrada',
+      body: `${item.visitorName} - ${item.unitLabel}`,
+      createdAt: item.updatedAt ?? new Date().toISOString(),
+      targetView: 'movements' as PorterView,
+      tone: 'green' as const,
+    })),
+    ...messageAlerts.map((item) => ({
+      id: `message-${item.id}`,
+      title: 'Mensaje pendiente por revisar',
+      body: item.subtitle,
+      createdAt: item.occurredAt,
+      targetView: 'messageHub' as PorterView,
+      tone: 'blue' as const,
+    })),
+  ];
+  const unreadAlertCount = porterAlerts.filter(
+    (item) => !readAlertIds.includes(item.id),
+  ).length;
+  const unreadMessageCount = messageAlerts.filter(
+    (item) => !readMessageIds.includes(item.id),
+  ).length;
+  const porterAlertIds = porterAlerts.map((item) => item.id).join('|');
 
   useEffect(() => {
     if (!activeCall || activeCall.status === 'ended') {
@@ -802,6 +867,48 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, [activeCall]);
+
+  useEffect(() => {
+    if (!isPorterSession) {
+      return;
+    }
+
+    const notificationKey = `${unreadAlertCount}-${unreadMessageCount}`;
+
+    if (
+      notificationKey === lastNotificationKey ||
+      (unreadAlertCount === 0 && unreadMessageCount === 0)
+    ) {
+      return;
+    }
+
+    setLastNotificationKey(notificationKey);
+    void notifyDevice(
+      unreadMessageCount > 0 ? 'Mensajeria pendiente' : 'Alertas de porteria',
+      unreadMessageCount > 0
+        ? `Tienes ${unreadMessageCount} chat(s) por revisar.`
+        : `Tienes ${unreadAlertCount} alerta(s) por revisar.`,
+    );
+  }, [
+    isPorterSession,
+    lastNotificationKey,
+    unreadAlertCount,
+    unreadMessageCount,
+  ]);
+
+  useEffect(() => {
+    if (activePorterView !== 'alerts' || porterAlerts.length === 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setReadAlertIds((current) =>
+        Array.from(new Set([...current, ...porterAlerts.map((item) => item.id)])),
+      );
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [activePorterView, porterAlertIds]);
 
   if (!fontsLoaded) {
     return (
@@ -836,6 +943,67 @@ export default function App() {
     ]);
   }
 
+  async function notifyDevice(title: string, body: string) {
+    if (Platform.OS === 'web') {
+      return;
+    }
+
+    const currentPermission = await Notifications.getPermissionsAsync();
+    const finalPermission =
+      currentPermission.granted
+        ? currentPermission
+        : await Notifications.requestPermissionsAsync();
+
+    if (!finalPermission.granted) {
+      return;
+    }
+
+    Vibration.vibrate([0, 260, 140, 260]);
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        body,
+        sound: true,
+        title,
+      },
+      trigger: null,
+    });
+  }
+
+  function openAlertsView() {
+    setActivePorterView('alerts');
+    void loadPendingAuthorizations();
+    void loadMovements();
+    void loadHistory();
+    void loadPackages();
+  }
+
+  function openMessageHub() {
+    setActivePorterView('messageHub');
+    void loadHistory();
+  }
+
+  function handleAlertPress(alert: PorterAlert) {
+    setReadAlertIds((current) => Array.from(new Set([...current, alert.id])));
+
+    if (alert.targetView === 'pending') {
+      setActivePorterView('pending');
+      setIsPendingOpen(true);
+      void loadPendingAuthorizations();
+      return;
+    }
+
+    if (alert.targetView === 'movements') {
+      setActivePorterView('movements');
+      setIsMovementsOpen(true);
+      void loadMovements();
+      return;
+    }
+
+    if (alert.targetView === 'messageHub') {
+      openMessageHub();
+    }
+  }
+
   async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${normalizedApiUrl}${path}`, {
       ...options,
@@ -853,6 +1021,51 @@ export default function App() {
     }
 
     return data as T;
+  }
+
+  async function requestWithToken<T>(
+    token: string,
+    path: string,
+    options?: RequestInit,
+  ): Promise<T> {
+    const response = await fetch(`${normalizedApiUrl}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...options?.headers,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error ?? 'No se pudo completar la solicitud');
+    }
+
+    return data as T;
+  }
+
+  async function loadPorterBootstrap(token: string) {
+    try {
+      const [pendingData, movementData, historyData, packageData] =
+        await Promise.all([
+          requestWithToken<{ items: PendingAuthorization[] }>(
+            token,
+            '/api/porter/authorizations',
+          ),
+          requestWithToken<MovementsState>(token, '/api/porter/movements'),
+          requestWithToken<{ items: HistoryItem[] }>(token, '/api/porter/history'),
+          requestWithToken<{ items: PackageItem[] }>(token, '/api/porter/packages'),
+        ]);
+
+      setPendingAuthorizations(pendingData.items);
+      setMovements(movementData);
+      setHistoryItems(historyData.items);
+      setPackageItems(packageData.items);
+    } catch {
+      // La sesion puede continuar aunque algun resumen operativo no cargue.
+    }
   }
 
   async function login() {
@@ -895,6 +1108,10 @@ export default function App() {
       if (data.user.role === 'resident') {
         await loadResidentDashboard(data.token);
       }
+
+      if (data.user.role === 'porter') {
+        await loadPorterBootstrap(data.token);
+      }
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -913,6 +1130,11 @@ export default function App() {
     setSelectedUnit(null);
     setHistoryItems([]);
     setChatHistory([]);
+    setMessageQuery('');
+    setMessageUnits([]);
+    setReadMessageIds([]);
+    setReadAlertIds([]);
+    setLastNotificationKey('');
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
     setIsPendingOpen(false);
@@ -924,6 +1146,9 @@ export default function App() {
     setHasUnitSearchResults(false);
     setActiveCall(null);
     setPackageItems([]);
+    setIsActiveVisitorsOpen(false);
+    setIsCallHistoryOpen(false);
+    setIsPackageFormOpen(false);
     resetVisitorForm();
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
@@ -988,6 +1213,41 @@ export default function App() {
     }
   }
 
+  async function searchMessageUnits() {
+    if (!messageQuery.trim()) {
+      showValidationError('Escribe bloque o apartamento para buscar el chat.');
+      return;
+    }
+
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Buscando unidad para mensajeria...' });
+
+    try {
+      const searchQuery = encodeURIComponent(messageQuery.trim());
+      const data = await request<{ units: UnitSearchResult[] }>(
+        `/api/porter/units?query=${searchQuery}`,
+      );
+      setMessageUnits(data.units);
+      setNotice({
+        tone: 'success',
+        text:
+          data.units.length === 0
+            ? 'No encontramos unidades con ese criterio.'
+            : `Unidades encontradas: ${data.units.length}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error buscando unidad para mensajeria.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function loadUnit(unit: UnitSearchResult) {
     setLoading(true);
     setSelectedSummary(unit);
@@ -1017,6 +1277,75 @@ export default function App() {
           error instanceof Error
             ? error.message
             : 'Error cargando la unidad seleccionada.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openUnitChat(unit: UnitSearchResult) {
+    setLoading(true);
+    setSelectedSummary(unit);
+    setNotice({ tone: 'info', text: 'Abriendo chat protegido...' });
+
+    try {
+      const data = await request<{ unit: UnitDetail }>(
+        `/api/porter/units/${unit.id}`,
+      );
+      const [movementData, pendingData, chatData] = await Promise.all([
+        request<MovementsState>('/api/porter/movements'),
+        request<{ items: PendingAuthorization[] }>('/api/porter/authorizations'),
+        request<{ messages: ChatHistoryItem[] }>(
+          `/api/porter/units/${unit.id}/messages`,
+        ),
+      ]);
+
+      setSelectedUnit(data.unit);
+      setMovements(movementData);
+      setPendingAuthorizations(pendingData.items);
+      setChatHistory(chatData.messages);
+      setChatVisibleCount(15);
+      setActivePorterView('messages');
+      setNotice({ tone: 'success', text: 'Chat cargado para la unidad.' });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error abriendo el chat.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openChatFromHistory(item: HistoryItem) {
+    setReadMessageIds((current) => Array.from(new Set([...current, item.id])));
+    setMessageQuery(item.subtitle);
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Buscando chat relacionado...' });
+
+    try {
+      const searchQuery = encodeURIComponent(item.subtitle);
+      const data = await request<{ units: UnitSearchResult[] }>(
+        `/api/porter/units?query=${searchQuery}`,
+      );
+
+      if (data.units.length === 0) {
+        setActivePorterView('messageHub');
+        setMessageUnits([]);
+        setNotice({
+          tone: 'error',
+          text: 'No pude ubicar automaticamente la unidad del mensaje.',
+        });
+        return;
+      }
+
+      await openUnitChat(data.units[0]);
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error abriendo mensaje.',
       });
     } finally {
       setLoading(false);
@@ -1245,10 +1574,11 @@ export default function App() {
 
       setActiveCall({
         id: data.call.id,
-        status: 'dialing',
-        startedAt: data.call.startedAt,
+        status: 'connected',
+        startedAt: new Date().toISOString(),
         durationSeconds: 0,
       });
+      setIsCallHistoryOpen(false);
       setNotice({ tone: 'success', text: data.call.message });
       await loadHistory();
     } catch (error) {
@@ -1260,20 +1590,6 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function connectActiveCall() {
-    if (!activeCall) {
-      return;
-    }
-
-    setActiveCall({
-      ...activeCall,
-      status: 'connected',
-      startedAt: new Date().toISOString(),
-      durationSeconds: 0,
-    });
-    setNotice({ tone: 'info', text: 'Llamada conectada. Cronometro activo.' });
   }
 
   async function endActiveCall() {
@@ -1322,6 +1638,7 @@ export default function App() {
 
   function openCallView() {
     setActivePorterView('calls');
+    setIsCallHistoryOpen(false);
 
     if (!activeCall || activeCall.status === 'ended') {
       void registerCall('initiated');
@@ -1657,12 +1974,51 @@ export default function App() {
       setPackageUnitQuery('');
       setPackageRecipientName('');
       setPackageType('');
+      setIsPackageFormOpen(false);
       setNotice({ tone: 'success', text: data.message });
     } catch (error) {
       setNotice({
         tone: 'error',
         text:
           error instanceof Error ? error.message : 'Error registrando paquete.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function markPackageDelivered(id: string) {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Marcando paquete como entregado...' });
+
+    try {
+      const data = await request<{ message: string; package: Partial<PackageItem> }>(
+        `/api/porter/packages/${id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'delivered' }),
+        },
+      );
+
+      setPackageItems((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                deliveredAt: data.package.deliveredAt ?? item.deliveredAt,
+                status: data.package.status ?? item.status,
+              }
+            : item,
+        ),
+      );
+      setNotice({ tone: 'success', text: data.message });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Error marcando paquete como entregado.',
       });
     } finally {
       setLoading(false);
@@ -2362,18 +2718,31 @@ export default function App() {
                 setHasUnitSearchResults(false);
               }}
             />
-            <Text style={styles.subsectionTitle}>Visitantes activos</Text>
-            {movements.pendingExit.length === 0 ? (
-              <Text style={styles.hint}>No hay visitantes activos registrados.</Text>
-            ) : (
-              movements.pendingExit.map((item) => (
-                <View key={`visitor-dashboard-${item.authorizationId}`} style={styles.historyItem}>
-                  <Text style={styles.historyType}>activo</Text>
-                  <Text style={styles.historyTitle}>{item.visitorName}</Text>
-                  <Text style={styles.historyMeta}>{item.unitLabel} - pendiente salida</Text>
-                </View>
-              ))
-            )}
+            <AccordionToggle
+              isOpen={isActiveVisitorsOpen}
+              onPress={() => setIsActiveVisitorsOpen((current) => !current)}
+              summary={
+                isActiveVisitorsOpen
+                  ? 'Ocultar visitantes actualmente dentro del conjunto.'
+                  : 'Abrir visitantes activos dentro del conjunto.'
+              }
+              title="Visitantes activos"
+            />
+            {isActiveVisitorsOpen ? (
+              <View style={styles.accordionBody}>
+                {movements.pendingExit.length === 0 ? (
+                  <Text style={styles.hint}>No hay visitantes activos registrados.</Text>
+                ) : (
+                  movements.pendingExit.map((item) => (
+                    <View key={`visitor-dashboard-${item.authorizationId}`} style={styles.historyItem}>
+                      <Text style={styles.historyType}>activo</Text>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>{item.unitLabel} - pendiente salida</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -2388,36 +2757,45 @@ export default function App() {
               </View>
               <ActionButton compact label="Actualizar" onPress={loadPackages} tone="secondary" />
             </View>
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{activePackages.length}</Text>
-                <Text style={styles.statLabel}>En porteria</Text>
-              </View>
+            <View style={[styles.statsRow, styles.centeredStatsRow]}>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{packageItems.length}</Text>
                 <Text style={styles.statLabel}>Registros</Text>
               </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{activePackages.length}</Text>
+                <Text style={styles.statLabel}>En porteria</Text>
+              </View>
             </View>
-            <Text style={styles.subsectionTitle}>Registrar recibido</Text>
-            <TextInput
-              onChangeText={setPackageUnitQuery}
-              placeholder={selectedUnit ? selectedUnit.displayLabel : 'Unidad. Ejemplo: 35 1C'}
-              style={styles.input}
-              value={packageUnitQuery}
+            <ActionButton
+              disabled={loading}
+              label={isPackageFormOpen ? 'Ocultar registro' : 'Registrar paquete'}
+              onPress={() => setIsPackageFormOpen((current) => !current)}
             />
-            <TextInput
-              onChangeText={setPackageRecipientName}
-              placeholder="Recibe o destinatario (opcional)"
-              style={styles.input}
-              value={packageRecipientName}
-            />
-            <TextInput
-              onChangeText={setPackageType}
-              placeholder="Tipo de paquete (caja, sobre, domicilio...)"
-              style={styles.input}
-              value={packageType}
-            />
-            <ActionButton disabled={loading} label="Registrar paquete" onPress={registerPackage} />
+            {isPackageFormOpen ? (
+              <>
+                <Text style={styles.subsectionTitle}>Registrar recibido</Text>
+                <TextInput
+                  onChangeText={setPackageUnitQuery}
+                  placeholder={selectedUnit ? selectedUnit.displayLabel : 'Unidad. Ejemplo: 35 1C'}
+                  style={styles.input}
+                  value={packageUnitQuery}
+                />
+                <TextInput
+                  onChangeText={setPackageRecipientName}
+                  placeholder="Recibe o destinatario (opcional)"
+                  style={styles.input}
+                  value={packageRecipientName}
+                />
+                <TextInput
+                  onChangeText={setPackageType}
+                  placeholder="Tipo de paquete (caja, sobre, domicilio...)"
+                  style={styles.input}
+                  value={packageType}
+                />
+                <ActionButton disabled={loading} label="Guardar paquete" onPress={registerPackage} />
+              </>
+            ) : null}
             <Text style={styles.subsectionTitle}>Paquetes recientes</Text>
             {packageItems.length === 0 ? (
               <View style={styles.emptyState}>
@@ -2435,42 +2813,153 @@ export default function App() {
                   <Text style={styles.historyMeta}>
                     {item.packageType} - {item.recipientName}
                   </Text>
+                  {item.status !== 'delivered' ? (
+                    <View style={styles.cardActionRow}>
+                      <ActionButton
+                        compact
+                        disabled={loading}
+                        label="Marcar entregado"
+                        onPress={() =>
+                          confirmAction(
+                            'Entregar paquete',
+                            `Marcar paquete de ${item.unitLabel} como entregado?`,
+                            () => void markPackageDelivered(item.id),
+                          )
+                        }
+                        tone="success"
+                      />
+                    </View>
+                  ) : null}
                 </View>
               ))
             )}
           </View>
         ) : null}
 
-        {isPorterSession && activePorterView === 'settings' ? (
+        {isPorterSession && activePorterView === 'messageHub' ? (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Ajustes de porteria</Text>
-            <Text style={styles.hint}>
-              Configuracion operativa del turno y accesos rapidos para el equipo de porteria.
-            </Text>
-            <View style={styles.shortcutGrid}>
-              <ShortcutCard
-                description="Verifica que el API local o publicado este respondiendo."
-                icon="cloud-outline"
-                title="Conexion API"
-                tone="green"
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.panelTitle}>Mensajeria</Text>
+                <Text style={styles.hint}>
+                  Busca una unidad para abrir el chat o revisa mensajes pendientes.
+                </Text>
+              </View>
+              <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+                {unreadMessageCount} pendientes
+              </Chip>
+            </View>
+            <View style={styles.searchRow}>
+              <PaperTextInput
+                autoCapitalize="characters"
+                dense
+                mode="outlined"
+                onChangeText={setMessageQuery}
+                label="Bloque o apto"
+                outlineStyle={styles.paperInputOutline}
+                placeholder="Ejemplo: 35 1C"
+                style={[styles.paperInput, styles.searchInput]}
+                value={messageQuery}
               />
-              <ShortcutCard
-                description="Los nombres y numeros de residentes permanecen protegidos."
-                icon="lock-closed-outline"
-                title="Privacidad"
-                tone="neutral"
-              />
-              <ShortcutCard
-                description="Acceso rapido al historial operativo de llamadas, mensajes y visitas."
-                icon="time-outline"
-                onPress={() => {
-                  setActivePorterView('history');
-                  setIsHistoryOpen(true);
-                  void loadHistory();
-                }}
-                title="Historial"
+              <ActionButton
+                compact
+                disabled={loading}
+                label="Buscar"
+                onPress={() => void searchMessageUnits()}
               />
             </View>
+            {messageUnits.length > 0 ? (
+              <FlatList
+                data={messageUnits}
+                keyExtractor={(item) => `message-unit-${item.id}`}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => void openUnitChat(item)} style={styles.unitItem}>
+                    <Text style={styles.unitTitle}>{item.displayLabel}</Text>
+                    <Text style={styles.unitMeta}>Abrir chat protegido</Text>
+                  </Pressable>
+                )}
+                scrollEnabled={false}
+              />
+            ) : null}
+            <Text style={styles.subsectionTitle}>Chats pendientes por leer</Text>
+            {messageAlerts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <IconBadge name="chatbubble-ellipses-outline" size="lg" />
+                <Text style={styles.emptyStateTitle}>Sin chats pendientes</Text>
+                <Text style={styles.emptyStateText}>
+                  Cuando llegue un mensaje de WhatsApp, aparecera aqui para abrir el chat.
+                </Text>
+              </View>
+            ) : (
+              messageAlerts.map((item) => (
+                <Pressable
+                  key={`message-alert-${item.id}`}
+                  onPress={() => void openChatFromHistory(item)}
+                  style={[
+                    styles.alertItem,
+                    readMessageIds.includes(item.id) ? styles.alertItemRead : null,
+                  ]}
+                >
+                  <Text style={styles.historyType}>mensaje</Text>
+                  <Text style={styles.historyTitle}>{item.title}</Text>
+                  <Text style={styles.historyMeta}>{item.subtitle}</Text>
+                </Pressable>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {isPorterSession && activePorterView === 'alerts' ? (
+          <View style={styles.panel}>
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.panelTitle}>Alertas</Text>
+                <Text style={styles.hint}>
+                  Notificaciones operativas de visitas, entradas y mensajes.
+                </Text>
+              </View>
+              <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+                {unreadAlertCount} nuevas
+              </Chip>
+            </View>
+            {porterAlerts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <IconBadge name="notifications-outline" size="lg" tone="green" />
+                <Text style={styles.emptyStateTitle}>Sin alertas pendientes</Text>
+                <Text style={styles.emptyStateText}>
+                  Las solicitudes y novedades importantes apareceran aqui.
+                </Text>
+              </View>
+            ) : (
+              porterAlerts.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => handleAlertPress(item)}
+                  style={[
+                    styles.alertItem,
+                    readAlertIds.includes(item.id) ? styles.alertItemRead : null,
+                  ]}
+                >
+                  <View style={styles.alertHeaderRow}>
+                    <IconBadge
+                      name={
+                        item.targetView === 'messageHub'
+                          ? 'chatbubble-ellipses-outline'
+                          : item.targetView === 'movements'
+                            ? 'log-in-outline'
+                            : 'notifications-outline'
+                      }
+                      size="sm"
+                      tone={item.tone}
+                    />
+                    <View style={styles.panelHeadingText}>
+                      <Text style={styles.historyTitle}>{item.title}</Text>
+                      <Text style={styles.historyMeta}>{item.body}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))
+            )}
           </View>
         ) : null}
 
@@ -2478,51 +2967,59 @@ export default function App() {
         selectedUnit &&
         ['unit', 'visitors', 'calls', 'messages'].includes(activePorterView) ? (
           <View style={styles.panel}>
-            <View style={styles.panelHeadingRow}>
-              <View style={styles.panelHeadingText}>
-                <Text style={styles.panelTitle}>Unidad seleccionada</Text>
-                <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
-              </View>
-              <ActionButton
-                compact
-                label="Buscar"
-                onPress={() => setActivePorterView('search')}
-                tone="secondary"
-              />
-            </View>
-            <Text style={styles.hint}>{selectedUnit.protectedSummary}</Text>
-            <Text style={styles.privacy}>{selectedUnit.privacyNotice}</Text>
+            {activePorterView !== 'calls' ? (
+              <>
+                <View style={styles.panelHeadingRow}>
+                  <View style={styles.panelHeadingText}>
+                    <Text style={styles.panelTitle}>Unidad seleccionada</Text>
+                    <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
+                  </View>
+                  <ActionButton
+                    compact
+                    label="Buscar"
+                    onPress={() => setActivePorterView('search')}
+                    tone="secondary"
+                  />
+                </View>
+                {activePorterView === 'unit' ? (
+                  <>
+                    <Text style={styles.hint}>{selectedUnit.protectedSummary}</Text>
+                    <Text style={styles.privacy}>{selectedUnit.privacyNotice}</Text>
+                  </>
+                ) : null}
 
-            {activePorterView !== 'unit' ? (
-              <ActionButton
-                compact
-                label="Volver a unidad"
-                onPress={() => setActivePorterView('unit')}
-                tone="secondary"
-              />
-            ) : null}
+                {activePorterView !== 'unit' ? (
+                  <ActionButton
+                    compact
+                    label="Volver a unidad"
+                    onPress={() => setActivePorterView('unit')}
+                    tone="secondary"
+                  />
+                ) : null}
 
-            {activePorterView !== 'messages' ? (
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
-                  {selectedUnitPendingPorter}
-                </Text>
-                <Text style={styles.statLabel}>Pend. porteria</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
-                  {selectedUnitPendingResident}
-                </Text>
-                <Text style={styles.statLabel}>Pend. residente</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
-                  {selectedUnitActiveVisits.length}
-                </Text>
-                <Text style={styles.statLabel}>Visitas activas</Text>
-              </View>
-            </View>
+                {activePorterView !== 'messages' ? (
+                  <View style={styles.statsRow}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>
+                        {selectedUnitPendingPorter}
+                      </Text>
+                      <Text style={styles.statLabel}>Pend. porteria</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>
+                        {selectedUnitPendingResident}
+                      </Text>
+                      <Text style={styles.statLabel}>Pend. residente</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statValue}>
+                        {selectedUnitActiveVisits.length}
+                      </Text>
+                      <Text style={styles.statLabel}>Visitas activas</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </>
             ) : null}
 
             {activePorterView === 'unit' ? (
@@ -2569,24 +3066,13 @@ export default function App() {
                   <Text style={styles.callTitle}>Llamada protegida</Text>
                   <Text style={styles.callNumber}>Numero: *** *** **48</Text>
                   <Text style={styles.callStatus}>
-                    {activeCall?.status === 'connected'
-                      ? 'Conectada'
-                      : activeCall?.status === 'ended'
+                    {activeCall?.status === 'ended'
                         ? 'Finalizada'
-                        : 'Marcando...'}
+                        : 'Llamada en curso'}
                   </Text>
                   <Text style={styles.callTimer}>
                     {formatDuration(activeCall?.durationSeconds ?? 0)}
                   </Text>
-
-                  {activeCall?.status === 'dialing' ? (
-                    <ActionButton
-                      disabled={loading || !selectedUnit.canCall}
-                      label="Marcar como conectada"
-                      onPress={() => void connectActiveCall()}
-                      tone="success"
-                    />
-                  ) : null}
 
                   {activeCall && activeCall.status !== 'ended' ? (
                     <ActionButton
@@ -2598,39 +3084,63 @@ export default function App() {
                   ) : null}
 
                   {activeCall?.status === 'ended' ? (
-                    <View style={styles.callActions}>
+                    <>
+                      <View style={styles.callActions}>
+                        <ActionButton
+                          flex
+                          label="Volver a marcar"
+                          onPress={() => void registerCall('initiated')}
+                        />
+                        <ActionButton
+                          flex
+                          label="Mensajeria"
+                          onPress={() => {
+                            setActivePorterView('messages');
+                            void loadChatHistory();
+                          }}
+                          tone="secondary"
+                        />
+                      </View>
+                      <View style={styles.callHistoryButtonRow}>
+                        <ActionButton
+                          compact
+                          label={
+                            isCallHistoryOpen
+                              ? 'Ocultar historial'
+                              : 'Ver historial de llamadas'
+                          }
+                          onPress={() => setIsCallHistoryOpen((current) => !current)}
+                          tone="secondary"
+                        />
+                      </View>
                       <ActionButton
-                        flex
-                        label="Volver a marcar"
-                        onPress={() => void registerCall('initiated')}
-                      />
-                      <ActionButton
-                        flex
-                        label="Mensajeria"
-                        onPress={() => {
-                          setActivePorterView('messages');
-                          void loadChatHistory();
-                        }}
+                        compact
+                        label="Volver a unidad"
+                        onPress={() => setActivePorterView('unit')}
                         tone="secondary"
                       />
-                    </View>
+                    </>
                   ) : null}
                 </View>
 
-                <Text style={styles.subsectionTitle}>Historial de llamadas</Text>
-                {recentCallHistory.length === 0 ? (
-                  <Text style={styles.hint}>
-                    Aun no hay llamadas recientes para esta unidad.
-                  </Text>
-                ) : (
-                  recentCallHistory.map((item) => (
-                    <View key={`recent-call-${item.id}`} style={styles.historyItem}>
-                      <Text style={styles.historyType}>llamada</Text>
-                      <Text style={styles.historyTitle}>{item.status}</Text>
-                      <Text style={styles.historyMeta}>{item.subtitle}</Text>
-                    </View>
-                  ))
-                )}
+                {isCallHistoryOpen ? (
+                  <>
+                    <Text style={styles.subsectionTitle}>Historial de llamadas</Text>
+                    {recentCallHistory.length === 0 ? (
+                      <Text style={styles.hint}>
+                        Aun no hay llamadas recientes para esta unidad.
+                      </Text>
+                    ) : (
+                      recentCallHistory.map((item) => (
+                        <View key={`recent-call-${item.id}`} style={styles.historyItem}>
+                          <Text style={styles.historyType}>llamada</Text>
+                          <Text style={styles.historyTitle}>{item.status}</Text>
+                          <Text style={styles.historyMeta}>{item.subtitle}</Text>
+                        </View>
+                      ))
+                    )}
+                  </>
+                ) : null}
               </>
             ) : null}
 
@@ -2891,14 +3401,14 @@ export default function App() {
                 setHasUnitSearchResults(false);
               }}
               style={
-                ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                ['search', 'unit', 'calls'].includes(activePorterView)
                   ? styles.bottomNavItemActive
                   : styles.bottomNavItem
               }
             >
               <Ionicons
                 color={
-                  ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                  ['search', 'unit', 'calls'].includes(activePorterView)
                     ? palette.primary
                     : palette.muted
                 }
@@ -2907,7 +3417,7 @@ export default function App() {
               />
               <Text
                 style={
-                  ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                  ['search', 'unit', 'calls'].includes(activePorterView)
                     ? styles.bottomNavTextActive
                     : styles.bottomNavText
                 }
@@ -2947,6 +3457,40 @@ export default function App() {
               </Text>
             </Pressable>
             <Pressable
+              onPress={openMessageHub}
+              style={
+                ['messageHub', 'messages'].includes(activePorterView)
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
+              <View style={styles.navIconWrap}>
+                <Ionicons
+                  color={
+                    ['messageHub', 'messages'].includes(activePorterView)
+                      ? palette.primary
+                      : palette.muted
+                  }
+                  name="chatbubble-ellipses-outline"
+                  size={20}
+                />
+                {unreadMessageCount > 0 ? (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>{unreadMessageCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text
+                style={
+                  ['messageHub', 'messages'].includes(activePorterView)
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
+                Mensajeria
+              </Text>
+            </Pressable>
+            <Pressable
               onPress={() => {
                 setActivePorterView('packages');
                 void loadPackages();
@@ -2957,11 +3501,18 @@ export default function App() {
               <Text style={activePorterView === 'packages' ? styles.bottomNavTextActive : styles.bottomNavText}>Paquetes</Text>
             </Pressable>
             <Pressable
-              onPress={() => setActivePorterView('settings')}
-              style={activePorterView === 'settings' ? styles.bottomNavItemActive : styles.bottomNavItem}
+              onPress={openAlertsView}
+              style={activePorterView === 'alerts' ? styles.bottomNavItemActive : styles.bottomNavItem}
             >
-              <Ionicons color={activePorterView === 'settings' ? palette.primary : palette.muted} name="settings-outline" size={20} />
-              <Text style={activePorterView === 'settings' ? styles.bottomNavTextActive : styles.bottomNavText}>Ajustes</Text>
+              <View style={styles.navIconWrap}>
+                <Ionicons color={activePorterView === 'alerts' ? palette.primary : palette.muted} name="notifications-outline" size={20} />
+                {unreadAlertCount > 0 ? (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>{unreadAlertCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={activePorterView === 'alerts' ? styles.bottomNavTextActive : styles.bottomNavText}>Alertas</Text>
             </Pressable>
           </View>
         ) : null}
@@ -3391,6 +3942,26 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  navIconWrap: {
+    position: 'relative',
+  },
+  navBadge: {
+    alignItems: 'center',
+    backgroundColor: palette.red,
+    borderRadius: 999,
+    minWidth: 18,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    position: 'absolute',
+    right: -12,
+    top: -8,
+  },
+  navBadgeText: {
+    color: '#ffffff',
+    fontFamily: appFonts.medium,
+    fontSize: 10,
+    fontWeight: '900',
+  },
   bottomNavText: {
     color: palette.muted,
     fontFamily: appFonts.medium,
@@ -3804,6 +4375,22 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     padding: 12,
   },
+  alertItem: {
+    backgroundColor: '#fff8e7',
+    borderBottomColor: palette.line,
+    borderRadius: 8,
+    borderBottomWidth: 1,
+    padding: 12,
+  },
+  alertItemRead: {
+    backgroundColor: '#ffffff',
+    opacity: 0.72,
+  },
+  alertHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
   historyType: {
     color: palette.blue,
     fontFamily: appFonts.medium,
@@ -3870,6 +4457,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  centeredStatsRow: {
+    alignSelf: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   callGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -3918,6 +4510,10 @@ const styles = StyleSheet.create({
     gap: 10,
     width: '100%',
   },
+  callHistoryButtonRow: {
+    alignItems: 'center',
+    width: '100%',
+  },
   callButton: {
     alignItems: 'center',
     borderRadius: 8,
@@ -3927,6 +4523,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   statBox: {
+    alignItems: 'center',
     backgroundColor: 'transparent',
     borderColor: 'transparent',
     borderWidth: 0,
@@ -3939,12 +4536,14 @@ const styles = StyleSheet.create({
     fontFamily: appFonts.black,
     fontSize: 24,
     fontWeight: '900',
+    textAlign: 'center',
   },
   statLabel: {
     color: palette.muted,
     fontFamily: appFonts.light,
     fontSize: 13,
     marginTop: 2,
+    textAlign: 'center',
   },
   button: {
     alignItems: 'center',
