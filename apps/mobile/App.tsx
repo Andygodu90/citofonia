@@ -22,7 +22,6 @@ import {
 } from 'react-native';
 import {
   Button as PaperButton,
-  Card,
   Chip,
   MD3LightTheme,
   PaperProvider,
@@ -234,6 +233,8 @@ type RoleOverviewViewProps = {
     tone?: 'blue' | 'green' | 'amber' | 'neutral';
   }>;
 };
+
+type AdminTab = 'home' | 'admin' | 'settings';
 
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
@@ -474,6 +475,135 @@ function AdminView() {
   );
 }
 
+function AdminHomeView() {
+  return (
+    <View style={styles.roleView}>
+      <View style={styles.panel}>
+        <View style={styles.panelHeadingRow}>
+          <View style={styles.panelHeadingText}>
+            <Text style={styles.label}>Conjunto residencial</Text>
+            <Text style={styles.selectedTitle}>Arcadas de San Isidro</Text>
+            <Text style={styles.hint}>
+              Panel general de ocupacion, accesos y actividad del dia.
+            </Text>
+          </View>
+          <IconBadge name="business-outline" size="lg" />
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <IconBadge name="business-outline" size="sm" />
+            <Text style={styles.statValue}>300</Text>
+            <Text style={styles.statLabel}>Unidades</Text>
+          </View>
+          <View style={styles.statBox}>
+            <IconBadge name="layers-outline" size="sm" tone="neutral" />
+            <Text style={styles.statValue}>15</Text>
+            <Text style={styles.statLabel}>Bloques</Text>
+          </View>
+          <View style={styles.statBox}>
+            <IconBadge name="shield-checkmark-outline" size="sm" tone="green" />
+            <Text style={styles.statValue}>3</Text>
+            <Text style={styles.statLabel}>Porterias</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.panel}>
+        <View style={styles.panelHeadingRow}>
+          <View>
+            <Text style={styles.panelTitle}>Visitantes</Text>
+            <Text style={styles.hint}>Resumen compacto del flujo de acceso.</Text>
+          </View>
+          <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+            Hoy
+          </Chip>
+        </View>
+
+        <View style={styles.adminVisitorGrid}>
+          <View style={styles.adminVisitorCard}>
+            <IconBadge name="walk-outline" size="sm" tone="green" />
+            <Text style={styles.adminVisitorValue}>12</Text>
+            <Text style={styles.adminVisitorLabel}>Activos dentro</Text>
+          </View>
+          <View style={styles.adminVisitorCard}>
+            <IconBadge name="time-outline" size="sm" tone="amber" />
+            <Text style={styles.adminVisitorValue}>6</Text>
+            <Text style={styles.adminVisitorLabel}>Pendientes residente</Text>
+          </View>
+          <View style={styles.adminVisitorCard}>
+            <IconBadge name="id-card-outline" size="sm" />
+            <Text style={styles.adminVisitorValue}>4</Text>
+            <Text style={styles.adminVisitorLabel}>Pendientes porteria</Text>
+          </View>
+        </View>
+
+        <View style={styles.porterSummaryList}>
+          <View style={styles.porterSummaryItem}>
+            <Text style={styles.porterSummaryName}>Porteria Principal</Text>
+            <Text style={styles.porterSummaryMeta}>7 activos - 2 pendientes</Text>
+          </View>
+          <View style={styles.porterSummaryItem}>
+            <Text style={styles.porterSummaryName}>Porteria Parqueadero</Text>
+            <Text style={styles.porterSummaryMeta}>3 activos - 1 pendiente</Text>
+          </View>
+          <View style={styles.porterSummaryItem}>
+            <Text style={styles.porterSummaryName}>Porteria Peatonal</Text>
+            <Text style={styles.porterSummaryMeta}>2 activos - 1 pendiente</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Acciones rapidas</Text>
+        <View style={styles.shortcutGrid}>
+          <ShortcutCard
+            description="Revisar solicitudes y movimientos del dia."
+            icon="clipboard-outline"
+            title="Control de accesos"
+            tone="green"
+          />
+          <ShortcutCard
+            description="Consultar residentes, apartamentos y reportes."
+            icon="bar-chart-outline"
+            title="Resumen administrativo"
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function AdminSettingsView() {
+  return (
+    <RoleOverviewView
+      badge="Ajustes"
+      description="Vista independiente para configuraciones futuras de administracion."
+      eyebrow="Configuracion"
+      icon="settings-outline"
+      shortcuts={[
+        {
+          description: 'Gestionar preferencias del conjunto.',
+          icon: 'options-outline',
+          title: 'Preferencias',
+          tone: 'neutral',
+        },
+        {
+          description: 'Preparar cambios de usuarios y permisos.',
+          icon: 'key-outline',
+          title: 'Seguridad',
+        },
+      ]}
+      stats={[
+        { icon: 'shield-checkmark-outline', label: 'Estado', tone: 'green', value: 'OK' },
+        { icon: 'people-outline', label: 'Roles', value: '4' },
+        { icon: 'settings-outline', label: 'Modulo', tone: 'neutral', value: 'Base' },
+      ]}
+      title="Ajustes"
+    />
+  );
+}
+
 type AccordionToggleProps = {
   title: string;
   summary: string;
@@ -515,6 +645,7 @@ export default function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('home');
   const [session, setSession] = useState<UserSession | null>(null);
   const [query, setQuery] = useState('31 1A');
   const [units, setUnits] = useState<UnitSearchResult[]>([]);
@@ -642,6 +773,7 @@ export default function App() {
         role: data.user.role,
         residentId: data.user.residentId ?? null,
       });
+      setActiveAdminTab('home');
       setNotice({
         tone: 'success',
         text:
@@ -1240,48 +1372,44 @@ export default function App() {
     <PaperProvider theme={paperTheme}>
       <SafeAreaView style={[styles.screen, !session ? styles.loginScreen : null]}>
         <StatusBar style="dark" />
+        {session ? (
+          <View style={styles.sessionBar}>
+            <View style={styles.sessionIdentity}>
+              <IconBadge
+                name={
+                  isResidentSession
+                    ? 'home-outline'
+                    : isPorterSession
+                      ? 'business-outline'
+                      : 'shield-checkmark-outline'
+                }
+                size="sm"
+              />
+              <View>
+                <Text style={styles.sessionLabel}>
+                  {isResidentSession
+                    ? 'Mi hogar'
+                    : isPorterSession
+                      ? 'Porteria'
+                      : isAdminSession
+                        ? 'Administracion'
+                        : 'Super Admin'}
+                </Text>
+                <Text style={styles.sessionUser}>
+                  {session.username} - {session.role}
+                </Text>
+              </View>
+            </View>
+            <Ionicons color="#ffffff" name="notifications-outline" size={20} />
+            <ActionButton label="Salir" onPress={logout} tone="danger" />
+          </View>
+        ) : null}
         <ScrollView
           contentContainerStyle={[
             styles.content,
             !session ? styles.loginContent : null,
           ]}
         >
-        {session ? (
-          <Card style={styles.headerCard}>
-            <Card.Content style={styles.headerCardContent}>
-            <View style={styles.brandRow}>
-              <View style={styles.brandMark}>
-                <Text style={styles.brandMarkText}>A</Text>
-              </View>
-              <View style={styles.brandTextBlock}>
-                <Text style={styles.eyebrow}>Citofonia residencial</Text>
-                <Text style={styles.title}>Arcadas de San Isidro</Text>
-              </View>
-            </View>
-            <Text style={styles.subtitle}>
-              Control de acceso, visitas y comunicacion protegida para porteria y
-              residentes.
-            </Text>
-            <View style={styles.headerMetrics}>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricValue}>300</Text>
-                <Text style={styles.metricLabel}>Unidades</Text>
-              </View>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricValue}>15</Text>
-                <Text style={styles.metricLabel}>Bloques</Text>
-              </View>
-              <View style={styles.metricTile}>
-                <Text style={styles.metricValue}>
-                  {session ? session.role : 'Demo'}
-                </Text>
-                <Text style={styles.metricLabel}>Perfil</Text>
-              </View>
-            </View>
-            </Card.Content>
-          </Card>
-        ) : null}
-
         {!session ? (
           <View style={styles.loginShell}>
             <View style={styles.loginBrandBlock}>
@@ -1378,38 +1506,7 @@ export default function App() {
               <Text style={styles.secureConnectionText}>Conexión segura</Text>
             </View>
           </View>
-        ) : (
-          <View style={styles.sessionBar}>
-            <View style={styles.sessionIdentity}>
-              <IconBadge
-                name={
-                  isResidentSession
-                    ? 'home-outline'
-                    : isPorterSession
-                      ? 'business-outline'
-                      : 'shield-checkmark-outline'
-                }
-                size="sm"
-              />
-              <View>
-                <Text style={styles.sessionLabel}>
-                  {isResidentSession
-                    ? 'Mi hogar'
-                    : isPorterSession
-                      ? 'Porteria'
-                      : isAdminSession
-                        ? 'Administracion'
-                        : 'Super Admin'}
-                </Text>
-                <Text style={styles.sessionUser}>
-                  {session.username} - {session.role}
-                </Text>
-              </View>
-            </View>
-            <Ionicons color={palette.navy} name="notifications-outline" size={20} />
-            <ActionButton label="Salir" onPress={logout} tone="danger" />
-          </View>
-        )}
+        ) : null}
 
         {session ? (
           <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
@@ -1419,7 +1516,13 @@ export default function App() {
 
         {isSuperAdminSession ? <SuperAdminView /> : null}
 
-        {isAdminSession ? <AdminView /> : null}
+        {isAdminSession && activeAdminTab === 'home' ? <AdminHomeView /> : null}
+
+        {isAdminSession && activeAdminTab === 'admin' ? <AdminView /> : null}
+
+        {isAdminSession && activeAdminTab === 'settings' ? (
+          <AdminSettingsView />
+        ) : null}
 
         {isPorterSession ? (
           <View style={styles.panel}>
@@ -2080,13 +2183,55 @@ export default function App() {
         </ScrollView>
         {session ? (
           <View style={styles.bottomNav}>
-            <View style={styles.bottomNavItemActive}>
-              <Ionicons color={palette.primary} name="home" size={20} />
-              <Text style={styles.bottomNavTextActive}>Inicio</Text>
-            </View>
-            <View style={styles.bottomNavItem}>
+            <Pressable
+              onPress={() => {
+                if (isAdminSession) {
+                  setActiveAdminTab('home');
+                }
+              }}
+              style={
+                !isAdminSession || activeAdminTab === 'home'
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
               <Ionicons
-                color={palette.muted}
+                color={
+                  !isAdminSession || activeAdminTab === 'home'
+                    ? palette.primary
+                    : palette.muted
+                }
+                name="home"
+                size={20}
+              />
+              <Text
+                style={
+                  !isAdminSession || activeAdminTab === 'home'
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
+                Inicio
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (isAdminSession) {
+                  setActiveAdminTab('admin');
+                }
+              }}
+              style={
+                isAdminSession && activeAdminTab === 'admin'
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
+              <Ionicons
+                color={
+                  isAdminSession && activeAdminTab === 'admin'
+                    ? palette.primary
+                    : palette.muted
+                }
                 name={
                   isResidentSession
                     ? 'mail-outline'
@@ -2096,7 +2241,13 @@ export default function App() {
                 }
                 size={20}
               />
-              <Text style={styles.bottomNavText}>
+              <Text
+                style={
+                  isAdminSession && activeAdminTab === 'admin'
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
                 {isResidentSession
                   ? 'Invitaciones'
                   : isPorterSession
@@ -2105,11 +2256,38 @@ export default function App() {
                       ? 'Admin'
                       : 'Super Admin'}
               </Text>
-            </View>
-            <View style={styles.bottomNavItem}>
-              <Ionicons color={palette.muted} name="settings-outline" size={20} />
-              <Text style={styles.bottomNavText}>Ajustes</Text>
-            </View>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (isAdminSession) {
+                  setActiveAdminTab('settings');
+                }
+              }}
+              style={
+                isAdminSession && activeAdminTab === 'settings'
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
+              <Ionicons
+                color={
+                  isAdminSession && activeAdminTab === 'settings'
+                    ? palette.primary
+                    : palette.muted
+                }
+                name="settings-outline"
+                size={20}
+              />
+              <Text
+                style={
+                  isAdminSession && activeAdminTab === 'settings'
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
+                Ajustes
+              </Text>
+            </Pressable>
           </View>
         ) : null}
       </SafeAreaView>
@@ -2422,87 +2600,55 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
-  headerCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 14,
-    marginTop: 8,
-    shadowColor: '#0b3778',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  headerCardContent: {
-    gap: 14,
-    padding: 18,
-  },
-  brandRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  brandMark: {
-    alignItems: 'center',
-    backgroundColor: '#eaf4ff',
-    borderRadius: 8,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  brandMarkText: {
-    color: palette.primary,
-    fontFamily: appFonts.black,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  brandTextBlock: {
-    flex: 1,
-  },
-  eyebrow: {
-    color: palette.primary,
-    fontFamily: appFonts.medium,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: palette.ink,
-    fontFamily: appFonts.black,
-    fontSize: 25,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: palette.muted,
-    fontFamily: appFonts.light,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  headerMetrics: {
+  adminVisitorGrid: {
     flexDirection: 'row',
     gap: 8,
   },
-  metricTile: {
+  adminVisitorCard: {
     backgroundColor: '#f6faff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
+    gap: 5,
+    minHeight: 104,
     padding: 10,
   },
-  metricValue: {
+  adminVisitorValue: {
     color: palette.ink,
     fontFamily: appFonts.black,
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: '900',
   },
-  metricLabel: {
+  adminVisitorLabel: {
     color: palette.muted,
-    fontFamily: appFonts.medium,
+    fontFamily: appFonts.light,
     fontSize: 11,
-    fontWeight: '700',
+    lineHeight: 15,
+  },
+  porterSummaryList: {
+    backgroundColor: '#f6faff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 10,
+  },
+  porterSummaryItem: {
+    borderBottomColor: palette.line,
+    borderBottomWidth: 1,
+    paddingBottom: 8,
+  },
+  porterSummaryName: {
+    color: palette.ink,
+    fontFamily: appFonts.medium,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  porterSummaryMeta: {
+    color: palette.muted,
+    fontFamily: appFonts.light,
+    fontSize: 12,
     marginTop: 2,
   },
   panel: {
@@ -2589,15 +2735,12 @@ const styles = StyleSheet.create({
   },
   sessionBar: {
     alignItems: 'center',
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
+    backgroundColor: palette.navy,
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'space-between',
-    marginBottom: 12,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   sessionIdentity: {
     alignItems: 'center',
@@ -2615,14 +2758,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sessionLabel: {
-    color: palette.muted,
+    color: '#d8e9ff',
     fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   sessionUser: {
-    color: palette.ink,
+    color: '#ffffff',
     fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
