@@ -1,5 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import {
+  Poppins_300Light,
+  Poppins_500Medium,
+  Poppins_900Black,
+} from '@expo-google-fonts/poppins';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,6 +41,12 @@ function getDefaultApiUrl() {
 
 const DEFAULT_API_URL = getDefaultApiUrl();
 
+const appFonts = {
+  light: 'Poppins_300Light',
+  medium: 'Poppins_500Medium',
+  black: 'Poppins_900Black',
+};
+
 const palette = {
   bg: '#f4f8fc',
   surface: '#ffffff',
@@ -62,6 +74,15 @@ const paperTheme = {
     surface: palette.surface,
     surfaceVariant: palette.surfaceMuted,
     outline: palette.line,
+  },
+  fonts: {
+    ...MD3LightTheme.fonts,
+    bodyLarge: { ...MD3LightTheme.fonts.bodyLarge, fontFamily: appFonts.medium },
+    bodyMedium: { ...MD3LightTheme.fonts.bodyMedium, fontFamily: appFonts.medium },
+    labelLarge: { ...MD3LightTheme.fonts.labelLarge, fontFamily: appFonts.medium },
+    labelMedium: { ...MD3LightTheme.fonts.labelMedium, fontFamily: appFonts.medium },
+    titleLarge: { ...MD3LightTheme.fonts.titleLarge, fontFamily: appFonts.black },
+    titleMedium: { ...MD3LightTheme.fonts.titleMedium, fontFamily: appFonts.medium },
   },
 };
 
@@ -346,6 +367,11 @@ function AccordionToggle({
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Poppins_300Light,
+    Poppins_500Medium,
+    Poppins_900Black,
+  });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -394,6 +420,16 @@ export default function App() {
   );
   const isResidentSession = session?.role === 'resident';
 
+  if (!fontsLoaded) {
+    return (
+      <PaperProvider theme={paperTheme}>
+        <SafeAreaView style={[styles.screen, styles.loginScreen]}>
+          <ActivityIndicator color={palette.primary} />
+        </SafeAreaView>
+      </PaperProvider>
+    );
+  }
+
   function showValidationError(text: string) {
     setNotice({ tone: 'error', text });
   }
@@ -438,7 +474,7 @@ export default function App() {
 
   async function login() {
     if (!username.trim() || !password.trim()) {
-      showValidationError('Escribe usuario y contrasena para ingresar.');
+      showValidationError('Escribe usuario y contraseña para ingresar.');
       return;
     }
 
@@ -1118,10 +1154,10 @@ export default function App() {
               mode="outlined"
               onChangeText={setUsername}
               activeOutlineColor={palette.primary}
-              label="Correo"
+              label="Usuario"
               outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
-              placeholder="correo@ejemplo.com"
+              placeholder="Usuario"
               style={styles.loginInput}
               value={username}
             />
@@ -1132,10 +1168,10 @@ export default function App() {
               mode="outlined"
               onChangeText={setPassword}
               activeOutlineColor={palette.primary}
-              label="Contrasena"
+              label="Contraseña"
               outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
-              placeholder="Contrasena"
+              placeholder="Contraseña"
               secureTextEntry
               style={styles.loginInput}
               value={password}
@@ -1166,7 +1202,6 @@ export default function App() {
             >
               Ingresar
             </PaperButton>
-            <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
             {loading ? <ActivityIndicator color={palette.primary} /> : null}
             {notice.tone === 'error' ? (
               <View style={[styles.notice, styles.errorNotice]}>
@@ -1922,7 +1957,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bg,
   },
   loginScreen: {
-    backgroundColor: '#f4f8fc',
+    backgroundColor: '#ffffff',
   },
   content: {
     alignSelf: 'center',
@@ -1939,17 +1974,17 @@ const styles = StyleSheet.create({
   },
   loginShell: {
     backgroundColor: '#ffffff',
-    borderColor: palette.line,
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: 14,
     paddingHorizontal: 24,
     paddingVertical: 30,
     shadowColor: '#0b3778',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   loginBrandBlock: {
     alignItems: 'center',
@@ -1958,12 +1993,14 @@ const styles = StyleSheet.create({
   },
   loginEyebrow: {
     color: palette.primary,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   loginBrand: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 18,
@@ -1972,6 +2009,7 @@ const styles = StyleSheet.create({
   },
   loginTitleLarge: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 34,
     fontWeight: '900',
     lineHeight: 40,
@@ -1985,6 +2023,7 @@ const styles = StyleSheet.create({
   },
   loginTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 4,
@@ -1992,6 +2031,7 @@ const styles = StyleSheet.create({
   },
   loginInput: {
     backgroundColor: '#ffffff',
+    fontFamily: appFonts.light,
     fontSize: 15,
   },
   loginInputOutline: {
@@ -2026,18 +2066,13 @@ const styles = StyleSheet.create({
   },
   rememberText: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 14,
     fontWeight: '700',
   },
-  forgotPassword: {
-    color: palette.primary,
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 4,
-    textAlign: 'center',
-  },
   loginHint: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
@@ -2121,6 +2156,7 @@ const styles = StyleSheet.create({
   },
   secureConnectionText: {
     color: palette.green,
+    fontFamily: appFonts.medium,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -2172,11 +2208,13 @@ const styles = StyleSheet.create({
   },
   shortcutTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '900',
   },
   shortcutDescription: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 2,
@@ -2208,11 +2246,13 @@ const styles = StyleSheet.create({
   },
   bottomNavText: {
     color: palette.muted,
+    fontFamily: appFonts.medium,
     fontSize: 11,
     fontWeight: '700',
   },
   bottomNavTextActive: {
     color: palette.primary,
+    fontFamily: appFonts.medium,
     fontSize: 11,
     fontWeight: '900',
   },
@@ -2248,6 +2288,7 @@ const styles = StyleSheet.create({
   },
   brandMarkText: {
     color: palette.primary,
+    fontFamily: appFonts.black,
     fontSize: 22,
     fontWeight: '900',
   },
@@ -2256,17 +2297,20 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: palette.primary,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   title: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 25,
     fontWeight: '900',
   },
   subtitle: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -2284,11 +2328,13 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   metricLabel: {
     color: palette.muted,
+    fontFamily: appFonts.medium,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
@@ -2318,6 +2364,7 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 18,
     fontWeight: '900',
   },
@@ -2349,6 +2396,7 @@ const styles = StyleSheet.create({
   },
   accordionIcon: {
     color: palette.primary,
+    fontFamily: appFonts.black,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -2357,6 +2405,7 @@ const styles = StyleSheet.create({
   },
   accordionChipText: {
     color: palette.primaryDark,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -2365,6 +2414,7 @@ const styles = StyleSheet.create({
   },
   accordionChipOpenText: {
     color: palette.green,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -2391,17 +2441,20 @@ const styles = StyleSheet.create({
   },
   roleChipText: {
     color: palette.primaryDark,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
   },
   sessionLabel: {
     color: palette.muted,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   sessionUser: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 2,
@@ -2414,11 +2467,13 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: palette.red,
+    fontFamily: appFonts.medium,
     fontSize: 14,
     fontWeight: '900',
   },
   label: {
     color: palette.muted,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -2429,6 +2484,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     color: palette.ink,
+    fontFamily: appFonts.light,
     fontSize: 16,
     minHeight: 48,
     paddingHorizontal: 12,
@@ -2436,6 +2492,7 @@ const styles = StyleSheet.create({
   },
   paperInput: {
     backgroundColor: palette.surface,
+    fontFamily: appFonts.light,
     fontSize: 15,
   },
   paperInputOutline: {
@@ -2444,6 +2501,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -2492,6 +2550,7 @@ const styles = StyleSheet.create({
   },
   smallButtonText: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -2518,6 +2577,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     color: palette.ink,
+    fontFamily: appFonts.light,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -2535,16 +2595,19 @@ const styles = StyleSheet.create({
   },
   unitTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 17,
     fontWeight: '900',
   },
   unitMeta: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 14,
     marginTop: 4,
   },
   selectedTitle: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 24,
     fontWeight: '900',
   },
@@ -2552,6 +2615,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff8e7',
     borderRadius: 8,
     color: '#7c2d12',
+    fontFamily: appFonts.light,
     fontSize: 14,
     lineHeight: 20,
     padding: 12,
@@ -2578,6 +2642,7 @@ const styles = StyleSheet.create({
   },
   inlineButtonText: {
     color: palette.primaryDark,
+    fontFamily: appFonts.medium,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -2597,23 +2662,27 @@ const styles = StyleSheet.create({
   },
   historyType: {
     color: palette.blue,
+    fontFamily: appFonts.medium,
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   historyTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
     marginTop: 4,
   },
   historyMeta: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 14,
     marginTop: 3,
   },
   subsectionTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '900',
     marginTop: 4,
@@ -2643,11 +2712,13 @@ const styles = StyleSheet.create({
   },
   decisionButtonText: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '900',
   },
   rejectButtonText: {
     color: palette.red,
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '900',
   },
@@ -2678,11 +2749,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: palette.ink,
+    fontFamily: appFonts.black,
     fontSize: 24,
     fontWeight: '900',
   },
   statLabel: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 13,
     marginTop: 2,
   },
@@ -2705,16 +2778,19 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
   },
   secondaryButtonText: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
   },
   warningButtonText: {
     color: '#7c5607',
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
   },
@@ -2746,6 +2822,7 @@ const styles = StyleSheet.create({
   },
   chatAvatarText: {
     color: palette.primary,
+    fontFamily: appFonts.black,
     fontSize: 16,
     fontWeight: '900',
   },
@@ -2754,11 +2831,13 @@ const styles = StyleSheet.create({
   },
   chatTitle: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 15,
     fontWeight: '900',
   },
   chatSubtitle: {
     color: '#d8e9ff',
+    fontFamily: appFonts.light,
     fontSize: 12,
     marginTop: 1,
   },
@@ -2767,6 +2846,7 @@ const styles = StyleSheet.create({
   },
   chatStatusText: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -2785,11 +2865,13 @@ const styles = StyleSheet.create({
   },
   emptyChatTitle: {
     color: palette.ink,
+    fontFamily: appFonts.medium,
     fontSize: 16,
     fontWeight: '900',
   },
   emptyChatText: {
     color: palette.muted,
+    fontFamily: appFonts.light,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
@@ -2819,6 +2901,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 2,
   },
   chatBubbleText: {
+    fontFamily: appFonts.light,
     fontSize: 15,
     lineHeight: 21,
   },
@@ -2836,6 +2919,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   chatTime: {
+    fontFamily: appFonts.light,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -2847,6 +2931,7 @@ const styles = StyleSheet.create({
   },
   chatCheck: {
     color: '#34b7f1',
+    fontFamily: appFonts.medium,
     fontSize: 11,
     fontWeight: '900',
   },
@@ -2867,6 +2952,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     color: palette.ink,
+    fontFamily: appFonts.light,
     flex: 1,
     fontSize: 15,
     maxHeight: 110,
@@ -2885,6 +2971,7 @@ const styles = StyleSheet.create({
   },
   chatSendText: {
     color: '#ffffff',
+    fontFamily: appFonts.medium,
     fontSize: 14,
     fontWeight: '900',
   },
