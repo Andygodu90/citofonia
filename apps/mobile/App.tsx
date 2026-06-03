@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -21,7 +22,17 @@ import {
   TextInput as PaperTextInput,
 } from 'react-native-paper';
 
-const DEFAULT_API_URL = 'http://localhost:3000';
+function getDefaultApiUrl() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const hostname = window.location.hostname || 'localhost';
+
+    return `http://${hostname}:3000`;
+  }
+
+  return 'http://localhost:3000';
+}
+
+const DEFAULT_API_URL = getDefaultApiUrl();
 
 const palette = {
   bg: '#eef4f8',
@@ -317,6 +328,14 @@ export default function App() {
   }
 
   function confirmAction(title: string, message: string, action: () => void) {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        action();
+      }
+
+      return;
+    }
+
     Alert.alert(title, message, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -1697,8 +1716,11 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bg,
   },
   content: {
+    alignSelf: 'center',
+    maxWidth: 1120,
     padding: 16,
     paddingBottom: 36,
+    width: '100%',
   },
   headerCard: {
     backgroundColor: palette.navy,

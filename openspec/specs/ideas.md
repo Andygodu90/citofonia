@@ -32,6 +32,7 @@ Ya esta implementado:
 - Health check avanzado.
 - Smoke test funcional.
 - Configuracion base para EAS Build Android.
+- Visualizacion web de la app movil desde computador o iPhone usando Expo Web.
 - Documentacion de piloto, despliegue y WhatsApp.
 
 Bloqueos reales que no dependen solo de codigo:
@@ -43,7 +44,7 @@ Bloqueos reales que no dependen solo de codigo:
 - Decidir estrategia de llamadas reales dentro de la app: SIM nativa/dialer o VoIP.
 
 Prioridad actual:
-Pasar de piloto local a piloto controlado real.
+Permitir pruebas desde navegador mientras no hay telefono Android disponible, y luego pasar de piloto local a piloto controlado real.
 
 Avance iniciado en pasos 1 al 5:
 - Variables de entorno ampliadas para plantilla WhatsApp y URL publica.

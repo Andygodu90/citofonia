@@ -48,3 +48,4 @@ Empieza por:
 - [docs/15-decision-llamadas-reales.md](docs/15-decision-llamadas-reales.md)
 - [docs/16-piloto-controlado-porteria.md](docs/16-piloto-controlado-porteria.md)
 - [docs/17-mejoras-produccion.md](docs/17-mejoras-produccion.md)
+- [docs/18-visualizacion-web-ios-computador.md](docs/18-visualizacion-web-ios-computador.md)

@@ -19,6 +19,7 @@
 - [Decision tecnica de llamadas reales](15-decision-llamadas-reales.md)
 - [Piloto controlado en porteria](16-piloto-controlado-porteria.md)
 - [Mejoras base de produccion](17-mejoras-produccion.md)
+- [Visualizacion web, computador e iPhone](18-visualizacion-web-ios-computador.md)
 
 ## Relacion con OpenSpec
 
