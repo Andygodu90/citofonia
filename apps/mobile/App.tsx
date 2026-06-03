@@ -981,58 +981,69 @@ export default function App() {
 
   return (
     <PaperProvider theme={paperTheme}>
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={[styles.screen, !session ? styles.loginScreen : null]}>
         <StatusBar style="dark" />
-        <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.headerCard}>
-          <Card.Content style={styles.headerCardContent}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>A</Text>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            !session ? styles.loginContent : null,
+          ]}
+        >
+        {session ? (
+          <Card style={styles.headerCard}>
+            <Card.Content style={styles.headerCardContent}>
+            <View style={styles.brandRow}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>A</Text>
+              </View>
+              <View style={styles.brandTextBlock}>
+                <Text style={styles.eyebrow}>Citofonia residencial</Text>
+                <Text style={styles.title}>Arcadas de San Isidro</Text>
+              </View>
             </View>
-            <View style={styles.brandTextBlock}>
-              <Text style={styles.eyebrow}>Citofonia residencial</Text>
-              <Text style={styles.title}>Arcadas de San Isidro</Text>
+            <Text style={styles.subtitle}>
+              Control de acceso, visitas y comunicacion protegida para porteria y
+              residentes.
+            </Text>
+            <View style={styles.headerMetrics}>
+              <View style={styles.metricTile}>
+                <Text style={styles.metricValue}>300</Text>
+                <Text style={styles.metricLabel}>Unidades</Text>
+              </View>
+              <View style={styles.metricTile}>
+                <Text style={styles.metricValue}>15</Text>
+                <Text style={styles.metricLabel}>Bloques</Text>
+              </View>
+              <View style={styles.metricTile}>
+                <Text style={styles.metricValue}>
+                  {session ? session.role : 'Demo'}
+                </Text>
+                <Text style={styles.metricLabel}>Perfil</Text>
+              </View>
             </View>
-          </View>
-          <Text style={styles.subtitle}>
-            Control de acceso, visitas y comunicacion protegida para porteria y
-            residentes.
-          </Text>
-          <View style={styles.headerMetrics}>
-            <View style={styles.metricTile}>
-              <Text style={styles.metricValue}>300</Text>
-              <Text style={styles.metricLabel}>Unidades</Text>
-            </View>
-            <View style={styles.metricTile}>
-              <Text style={styles.metricValue}>15</Text>
-              <Text style={styles.metricLabel}>Bloques</Text>
-            </View>
-            <View style={styles.metricTile}>
-              <Text style={styles.metricValue}>
-                {session ? session.role : 'Demo'}
-              </Text>
-              <Text style={styles.metricLabel}>Perfil</Text>
-            </View>
-          </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        ) : null}
 
         {!session ? (
-          <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Ingresar al sistema</Text>
-            <Text style={styles.hint}>
-              Usa tu perfil de porteria, administracion o residente.
-            </Text>
+          <View style={styles.loginShell}>
+            <View style={styles.loginBrandBlock}>
+              <Text style={styles.loginEyebrow}>Citofonia residencial</Text>
+              <Text style={styles.loginBrand}>ARCADAS DE SAN ISIDRO</Text>
+              <View style={styles.loginDivider} />
+            </View>
+            <Text style={styles.loginTitle}>Inicio de sesion</Text>
             <PaperTextInput
               autoCapitalize="none"
               autoCorrect={false}
               dense
               mode="outlined"
               onChangeText={setUsername}
+              activeOutlineColor="#8a735d"
               label="Usuario"
-              outlineStyle={styles.paperInputOutline}
-              style={styles.paperInput}
+              outlineColor="#cdbfaa"
+              outlineStyle={styles.loginInputOutline}
+              style={styles.loginInput}
               value={username}
             />
             <PaperTextInput
@@ -1041,15 +1052,32 @@ export default function App() {
               dense
               mode="outlined"
               onChangeText={setPassword}
+              activeOutlineColor="#8a735d"
               label="Contrasena"
-              outlineStyle={styles.paperInputOutline}
+              outlineColor="#cdbfaa"
+              outlineStyle={styles.loginInputOutline}
               secureTextEntry
-              style={styles.paperInput}
+              style={styles.loginInput}
               value={password}
             />
-            <ActionButton disabled={loading} label="Ingresar" onPress={login} />
-            <Text style={styles.hint}>
-              Usuarios de prueba: porteria / Porteria123* o residente / Residente123*
+            <PaperButton
+              disabled={loading}
+              mode="contained"
+              onPress={login}
+              buttonColor="#8a735d"
+              textColor="#fffaf2"
+              style={styles.loginButton}
+            >
+              Ingresar
+            </PaperButton>
+            {loading ? <ActivityIndicator color="#8a735d" /> : null}
+            {notice.tone === 'error' ? (
+              <View style={[styles.notice, styles.errorNotice]}>
+                <Text style={styles.noticeText}>{notice.text}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.loginHint}>
+              Acceso privado para porteria, administracion y residentes.
             </Text>
           </View>
         ) : (
@@ -1067,9 +1095,11 @@ export default function App() {
           </View>
         )}
 
-        <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
-          <Text style={styles.noticeText}>{notice.text}</Text>
-        </View>
+        {session ? (
+          <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
+            <Text style={styles.noticeText}>{notice.text}</Text>
+          </View>
+        ) : null}
 
         {isPorterSession ? (
           <View style={styles.panel}>
@@ -1695,12 +1725,87 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.bg,
   },
+  loginScreen: {
+    backgroundColor: '#f4efe8',
+  },
   content: {
     alignSelf: 'center',
     maxWidth: 1120,
     padding: 16,
     paddingBottom: 36,
     width: '100%',
+  },
+  loginContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    maxWidth: 460,
+    paddingHorizontal: 24,
+  },
+  loginShell: {
+    backgroundColor: '#fffaf2',
+    borderColor: '#ddd2c4',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 30,
+    shadowColor: '#5f5145',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  loginBrandBlock: {
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  loginEyebrow: {
+    color: '#8a735d',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  loginBrand: {
+    color: '#4a4037',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+  loginDivider: {
+    backgroundColor: '#cdbfaa',
+    height: 2,
+    marginTop: 4,
+    width: 72,
+  },
+  loginTitle: {
+    color: '#5f5145',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  loginInput: {
+    backgroundColor: '#fffdf8',
+    fontSize: 15,
+  },
+  loginInputOutline: {
+    borderColor: '#cdbfaa',
+    borderRadius: 8,
+  },
+  loginButton: {
+    borderRadius: 8,
+    justifyContent: 'center',
+    marginTop: 4,
+    minHeight: 48,
+  },
+  loginHint: {
+    color: '#786b5d',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+    textAlign: 'center',
   },
   headerCard: {
     backgroundColor: palette.navy,
