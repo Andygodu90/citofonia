@@ -12,6 +12,8 @@ type PendingAuthorizationRow = {
   status: string;
   created_at: string;
   notes: string | null;
+  vehicle_plate: string | null;
+  photo_url: string | null;
 };
 
 export async function GET(request: Request) {
@@ -31,7 +33,9 @@ export async function GET(request: Request) {
         u.display_label as unit_label,
         aa.status,
         aa.created_at,
-        aa.notes
+        aa.notes,
+        v.vehicle_plate,
+        v.photo_url
       from access_authorizations aa
       join visitors v on v.id = aa.visitor_id
       join residential_units u on u.id = aa.unit_id
@@ -55,6 +59,8 @@ export async function GET(request: Request) {
       status: row.status,
       createdAt: row.created_at,
       notes: row.notes,
+      vehiclePlate: row.vehicle_plate,
+      photoUrl: row.photo_url,
     })),
   });
 }

@@ -16,6 +16,8 @@ export async function GET(request: Request) {
         aa.id as authorization_id,
         v.full_name as visitor_name,
         v.visitor_type,
+        v.vehicle_plate,
+        v.photo_url,
         u.display_label as unit_label,
         aa.status,
         aa.updated_at
@@ -43,6 +45,8 @@ export async function GET(request: Request) {
         aa.id as authorization_id,
         v.full_name as visitor_name,
         v.visitor_type,
+        v.vehicle_plate,
+        v.photo_url,
         u.display_label as unit_label,
         entry.occurred_at as entered_at
       from access_authorizations aa
@@ -71,6 +75,8 @@ export async function GET(request: Request) {
       authorizationId: row.authorization_id,
       visitorName: row.visitor_name,
       visitorType: row.visitor_type,
+      vehiclePlate: row.vehicle_plate,
+      photoUrl: row.photo_url,
       unitLabel: row.unit_label,
       status: row.status,
       updatedAt: row.updated_at,
@@ -79,6 +85,8 @@ export async function GET(request: Request) {
       authorizationId: row.authorization_id,
       visitorName: row.visitor_name,
       visitorType: row.visitor_type,
+      vehiclePlate: row.vehicle_plate,
+      photoUrl: row.photo_url,
       unitLabel: row.unit_label,
       enteredAt: row.entered_at,
     })),

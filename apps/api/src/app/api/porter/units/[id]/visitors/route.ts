@@ -23,6 +23,8 @@ export async function POST(request: Request, { params }: Params) {
     phone?: string;
     visitorType?: string;
     reason?: string;
+    vehiclePlate?: string;
+    photoUrl?: string;
     notes?: string;
   };
 
@@ -31,6 +33,8 @@ export async function POST(request: Request, { params }: Params) {
   const phone = body.phone?.trim() || null;
   const visitorType = body.visitorType?.trim() || "guest";
   const reason = body.reason?.trim() || "Visita";
+  const vehiclePlate = body.vehiclePlate?.trim() || null;
+  const photoUrl = body.photoUrl?.trim() || null;
   const notes = body.notes?.trim() || null;
 
   if (!fullName || fullName.length < 3) {
@@ -75,10 +79,12 @@ export async function POST(request: Request, { params }: Params) {
           document_id,
           phone,
           visitor_type,
+          vehicle_plate,
+          photo_url,
           notes
         )
-        values ($1, $2, $3, $4, $5, $6)
-        returning id, full_name, document_id, visitor_type, created_at
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
+        returning id, full_name, document_id, visitor_type, vehicle_plate, photo_url, created_at
       `,
       [
         unit.property_id,
@@ -86,6 +92,8 @@ export async function POST(request: Request, { params }: Params) {
         documentId,
         phone,
         visitorType,
+        vehiclePlate,
+        photoUrl,
         notes ? `${reason}. ${notes}` : reason,
       ],
     );
@@ -158,6 +166,8 @@ export async function POST(request: Request, { params }: Params) {
         fullName: visitor.full_name,
         documentId: visitor.document_id,
         visitorType: visitor.visitor_type,
+        vehiclePlate: visitor.vehicle_plate,
+        photoUrl: visitor.photo_url,
         createdAt: visitor.created_at,
       },
       authorization: {

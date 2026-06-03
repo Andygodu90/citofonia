@@ -1,16 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Poppins_300Light,
   Poppins_500Medium,
   Poppins_900Black,
 } from '@expo-google-fonts/poppins';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   Pressable,
   SafeAreaView,
@@ -130,6 +132,8 @@ type MovementItem = {
   visitorName: string;
   visitorType: string;
   unitLabel: string;
+  vehiclePlate?: string | null;
+  photoUrl?: string | null;
 };
 
 type MovementsState = {
@@ -145,6 +149,8 @@ type PendingAuthorization = {
   status: string;
   createdAt: string;
   notes: string | null;
+  vehiclePlate?: string | null;
+  photoUrl?: string | null;
 };
 
 type ChatHistoryItem = {
@@ -161,6 +167,8 @@ type ResidentPendingItem = {
   status: string;
   notes: string | null;
   createdAt: string;
+  vehiclePlate?: string | null;
+  photoUrl?: string | null;
 };
 
 type ResidentHistoryItem = {
@@ -169,6 +177,26 @@ type ResidentHistoryItem = {
   status: string;
   visitorName: string;
   occurredAt: string;
+  vehiclePlate?: string | null;
+  photoUrl?: string | null;
+};
+
+type CallSession = {
+  id: string;
+  status: 'dialing' | 'connected' | 'ended';
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds: number;
+};
+
+type PackageItem = {
+  id: string;
+  unitLabel: string;
+  recipientName: string;
+  packageType: string;
+  status: string;
+  createdAt: string;
+  deliveredAt?: string | null;
 };
 
 type ResidentDashboard = {
@@ -240,11 +268,14 @@ type PorterView =
   | 'search'
   | 'unit'
   | 'visitors'
+  | 'visitorDashboard'
   | 'calls'
   | 'messages'
   | 'movements'
   | 'pending'
-  | 'history';
+  | 'history'
+  | 'packages'
+  | 'settings';
 
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
@@ -434,6 +465,12 @@ function SuperAdminView() {
           title: 'Usuarios',
         },
         {
+          description: 'Consultar operacion de paquetes por conjunto.',
+          icon: 'cube-outline',
+          title: 'Paquetes',
+          tone: 'green',
+        },
+        {
           description: 'Consultar actividad global del sistema.',
           icon: 'bar-chart-outline',
           title: 'Reportes',
@@ -467,6 +504,12 @@ function AdminView() {
           description: 'Administra bloques, apartamentos y contactos.',
           icon: 'business-outline',
           title: 'Apartamentos',
+        },
+        {
+          description: 'Seguimiento de paquetes recibidos en porteria.',
+          icon: 'cube-outline',
+          title: 'Paquetes',
+          tone: 'green',
         },
         {
           description: 'Consulta actividad y reportes del conjunto.',
@@ -679,6 +722,7 @@ export default function App() {
     'Buen dia, por favor confirmar autorizacion de ingreso.',
   );
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+  const [chatVisibleCount, setChatVisibleCount] = useState(15);
   const [residentDashboard, setResidentDashboard] =
     useState<ResidentDashboard | null>(null);
   const [residentVisitorName, setResidentVisitorName] = useState(
@@ -686,11 +730,20 @@ export default function App() {
   );
   const [residentVisitorDocument, setResidentVisitorDocument] = useState('');
   const [residentVisitorType, setResidentVisitorType] = useState('invitado');
-  const [visitorName, setVisitorName] = useState('Visitante de prueba');
-  const [visitorDocument, setVisitorDocument] = useState('123456789');
-  const [visitorPhone, setVisitorPhone] = useState('3000000000');
-  const [visitorType, setVisitorType] = useState('invitado');
-  const [visitReason, setVisitReason] = useState('Visita familiar');
+  const [visitorName, setVisitorName] = useState('');
+  const [visitorDocument, setVisitorDocument] = useState('');
+  const [visitorPhone, setVisitorPhone] = useState('');
+  const [visitReason, setVisitReason] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [visitorPhotoUri, setVisitorPhotoUri] = useState('');
+  const [visitorPhotoDataUrl, setVisitorPhotoDataUrl] = useState('');
+  const [isVisitorFormOpen, setIsVisitorFormOpen] = useState(false);
+  const [hasUnitSearchResults, setHasUnitSearchResults] = useState(false);
+  const [activeCall, setActiveCall] = useState<CallSession | null>(null);
+  const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
+  const [packageUnitQuery, setPackageUnitQuery] = useState('');
+  const [packageRecipientName, setPackageRecipientName] = useState('');
+  const [packageType, setPackageType] = useState('');
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>({
     tone: 'info',
@@ -712,6 +765,43 @@ export default function App() {
         (item) => item.unitLabel === selectedUnit.displayLabel,
       )
     : [];
+  const selectedUnitPendingPorter = selectedUnitPendingAuthorizations.length;
+  const selectedUnitPendingResident = 0;
+  const visibleChatMessages = [...chatHistory]
+    .reverse()
+    .slice(Math.max(chatHistory.length - chatVisibleCount, 0));
+  const recentCallHistory = historyItems
+    .filter(
+      (item) =>
+        item.type === 'call' &&
+        (!selectedUnit || item.subtitle.includes(selectedUnit.displayLabel)),
+    )
+    .slice(0, 5);
+  const activePackages = packageItems.filter((item) => item.status !== 'delivered');
+
+  useEffect(() => {
+    if (!activeCall || activeCall.status === 'ended') {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setActiveCall((current) => {
+        if (!current || current.status === 'ended') {
+          return current;
+        }
+
+        const startedAt = new Date(current.startedAt).getTime();
+        const elapsed = Math.max(
+          0,
+          Math.floor((Date.now() - startedAt) / 1000),
+        );
+
+        return { ...current, durationSeconds: elapsed };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeCall]);
 
   if (!fontsLoaded) {
     return (
@@ -831,14 +921,36 @@ export default function App() {
     setResidentDashboard(null);
     setActiveAdminTab('home');
     setActivePorterView('home');
+    setHasUnitSearchResults(false);
+    setActiveCall(null);
+    setPackageItems([]);
+    resetVisitorForm();
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
+  }
+
+  function resetVisitorForm() {
+    setVisitorName('');
+    setVisitorDocument('');
+    setVisitorPhone('');
+    setVisitReason('');
+    setVehiclePlate('');
+    setVisitorPhotoUri('');
+    setVisitorPhotoDataUrl('');
+    setIsVisitorFormOpen(false);
   }
 
   async function searchUnits(overrideQuery?: string) {
     const searchText = overrideQuery ?? query;
+    const shouldShowAll = overrideQuery === '';
+
+    if (!searchText.trim() && !shouldShowAll) {
+      showValidationError('Escribe un bloque o apartamento, o usa Ver todas las unidades.');
+      return;
+    }
 
     setLoading(true);
     setActivePorterView('search');
+    setHasUnitSearchResults(true);
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
@@ -919,6 +1031,7 @@ export default function App() {
     setPendingAuthorizations([]);
     setMovements({ pendingEntry: [], pendingExit: [] });
     setActivePorterView('search');
+    setHasUnitSearchResults(false);
     setNotice({
       tone: 'info',
       text: 'Puedes buscar o seleccionar otra unidad.',
@@ -1110,7 +1223,7 @@ export default function App() {
   }
 
   async function registerCall(
-    status: 'initiated' | 'answered' | 'no_answer' | 'rejected',
+    status: 'initiated' | 'answered' | 'no_answer' | 'rejected' = 'initiated',
   ) {
     if (!selectedUnit) {
       return;
@@ -1121,16 +1234,77 @@ export default function App() {
 
     try {
       const data = await request<{
-        call: { status: string; message: string };
+        call: { id: string; status: string; startedAt: string; message: string };
       }>(`/api/porter/units/${selectedUnit.id}/calls`, {
         method: 'POST',
         body: JSON.stringify({
           status,
-          notes: 'Registro manual desde app de porteria. Numero protegido.',
+          notes: 'Llamada protegida desde app de porteria. Numero protegido.',
         }),
       });
 
+      setActiveCall({
+        id: data.call.id,
+        status: 'dialing',
+        startedAt: data.call.startedAt,
+        durationSeconds: 0,
+      });
       setNotice({ tone: 'success', text: data.call.message });
+      await loadHistory();
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error registrando llamada.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function connectActiveCall() {
+    if (!activeCall) {
+      return;
+    }
+
+    setActiveCall({
+      ...activeCall,
+      status: 'connected',
+      startedAt: new Date().toISOString(),
+      durationSeconds: 0,
+    });
+    setNotice({ tone: 'info', text: 'Llamada conectada. Cronometro activo.' });
+  }
+
+  async function endActiveCall() {
+    if (!activeCall) {
+      return;
+    }
+
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Finalizando llamada...' });
+
+    try {
+      const data = await request<{
+        call: { id: string; status: string; startedAt: string; endedAt: string | null };
+      }>(`/api/porter/calls/${activeCall.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: activeCall.status === 'connected' ? 'answered' : 'no_answer',
+          ended: true,
+          notes: `Duracion registrada por app: ${formatDuration(activeCall.durationSeconds)}.`,
+        }),
+      });
+
+      setActiveCall({
+        ...activeCall,
+        status: 'ended',
+        endedAt: data.call.endedAt,
+      });
+      setNotice({
+        tone: 'success',
+        text: `Llamada finalizada. Duracion: ${formatDuration(activeCall.durationSeconds)}.`,
+      });
 
       if (isHistoryOpen) {
         await loadHistory();
@@ -1143,6 +1317,14 @@ export default function App() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  function openCallView() {
+    setActivePorterView('calls');
+
+    if (!activeCall || activeCall.status === 'ended') {
+      void registerCall('initiated');
     }
   }
 
@@ -1171,6 +1353,7 @@ export default function App() {
       });
 
       setNotice({ tone: 'success', text: data.thread.message });
+      setChatMessage('');
       await loadChatHistory();
     } catch (error) {
       setNotice({
@@ -1196,6 +1379,7 @@ export default function App() {
         `/api/porter/units/${selectedUnit.id}/messages`,
       );
       setChatHistory(data.messages);
+      setChatVisibleCount(15);
       setNotice({
         tone: 'success',
         text:
@@ -1229,11 +1413,6 @@ export default function App() {
       return;
     }
 
-    if (!visitorType.trim()) {
-      showValidationError('El tipo de visitante es obligatorio.');
-      return;
-    }
-
     setLoading(true);
     setNotice({ tone: 'info', text: 'Registrando visitante...' });
 
@@ -1247,8 +1426,10 @@ export default function App() {
           fullName: visitorName.trim(),
           documentId: visitorDocument.trim(),
           phone: visitorPhone.trim(),
-          visitorType: visitorType.trim(),
-          reason: visitReason.trim(),
+          visitorType: 'visitante',
+          reason: visitReason.trim() || 'Visita',
+          vehiclePlate: vehiclePlate.trim(),
+          photoUrl: visitorPhotoDataUrl || visitorPhotoUri,
         }),
       });
 
@@ -1260,6 +1441,9 @@ export default function App() {
       if (isPendingOpen) {
         await loadPendingAuthorizations();
       }
+
+      await Promise.all([loadPendingAuthorizations(), loadMovements()]);
+      resetVisitorForm();
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -1271,6 +1455,45 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function takeVisitorPhoto() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      showValidationError('Debes permitir la camara para tomar la foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      base64: true,
+      quality: 0.45,
+    });
+
+    if (result.canceled || result.assets.length === 0) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setVisitorPhotoUri(asset.uri);
+
+    if (asset.base64) {
+      const mimeType = asset.mimeType ?? 'image/jpeg';
+      setVisitorPhotoDataUrl(`data:${mimeType};base64,${asset.base64}`);
+    }
+  }
+
+  function formatDuration(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = Math.max(0, totalSeconds % 60)
+      .toString()
+      .padStart(2, '0');
+
+    return `${minutes}:${seconds}`;
   }
 
   async function loadResidentDashboard(tokenOverride?: string) {
@@ -1375,6 +1598,71 @@ export default function App() {
           error instanceof Error
             ? error.message
             : 'Error creando visitante autorizado.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadPackages() {
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Cargando paquetes...' });
+
+    try {
+      const data = await request<{ items: PackageItem[] }>('/api/porter/packages');
+      setPackageItems(data.items);
+      setNotice({
+        tone: 'success',
+        text:
+          data.items.length === 0
+            ? 'No hay paquetes registrados.'
+            : `Paquetes cargados: ${data.items.length}.`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error cargando paquetes.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function registerPackage() {
+    const unitQuery = packageUnitQuery.trim() || selectedUnit?.displayLabel || '';
+
+    if (!unitQuery) {
+      showValidationError('Indica la unidad a la que pertenece el paquete.');
+      return;
+    }
+
+    setLoading(true);
+    setNotice({ tone: 'info', text: 'Registrando paquete...' });
+
+    try {
+      const data = await request<{ message: string; package: PackageItem }>(
+        '/api/porter/packages',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            unitQuery,
+            recipientName: packageRecipientName.trim() || 'Residente',
+            packageType: packageType.trim() || 'Paquete',
+          }),
+        },
+      );
+
+      setPackageItems((current) => [data.package, ...current]);
+      setPackageUnitQuery('');
+      setPackageRecipientName('');
+      setPackageType('');
+      setNotice({ tone: 'success', text: data.message });
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        text:
+          error instanceof Error ? error.message : 'Error registrando paquete.',
       });
     } finally {
       setLoading(false);
@@ -1579,23 +1867,11 @@ export default function App() {
               </View>
             </View>
             <View style={styles.shortcutGrid}>
-              <ActionButton
-                label="BUSCAR UNIDAD"
-                onPress={() => {
-                  setActivePorterView('search');
-                  if (units.length === 0) {
-                    void searchUnits();
-                  }
-                }}
-              />
               <ShortcutCard
                 description="Busca apartamentos y contacta residentes."
                 icon="search-outline"
                 onPress={() => {
                   setActivePorterView('search');
-                  if (units.length === 0) {
-                    void searchUnits();
-                  }
                 }}
                 title="Buscar unidad"
               />
@@ -1671,6 +1947,12 @@ export default function App() {
                 description="Ver registros de visitas."
                 icon="time-outline"
                 title="Historial"
+              />
+              <ShortcutCard
+                description="Consulta paquetes recibidos en porteria."
+                icon="cube-outline"
+                title="Paquetes"
+                tone="neutral"
               />
             </View>
 
@@ -1767,7 +2049,7 @@ export default function App() {
         {isPorterSession && activePorterView === 'search' ? (
           <View style={styles.panel}>
             <View style={styles.panelHeadingRow}>
-              <View>
+              <View style={styles.panelHeadingText}>
                 <Text style={styles.panelTitle}>Consulta de apartamentos</Text>
                 <Text style={styles.hint}>
                   Lista completa o filtro por bloque, apartamento o combinacion.
@@ -1820,7 +2102,7 @@ export default function App() {
                   />
                 </View>
               </View>
-            ) : (
+            ) : hasUnitSearchResults ? (
               <FlatList
                 data={units}
                 keyExtractor={(item) => item.id}
@@ -1833,6 +2115,14 @@ export default function App() {
                 )}
                 scrollEnabled={false}
               />
+            ) : (
+              <View style={styles.emptyState}>
+                <IconBadge name="business-outline" size="lg" />
+                <Text style={styles.emptyStateTitle}>Busca una unidad</Text>
+                <Text style={styles.emptyStateText}>
+                  Usa el campo superior para filtrar por bloque o apartamento, o carga el listado completo cuando lo necesites.
+                </Text>
+              </View>
             )}
           </View>
         ) : null}
@@ -2037,6 +2327,153 @@ export default function App() {
           </View>
         ) : null}
 
+        {isPorterSession && activePorterView === 'visitorDashboard' ? (
+          <View style={styles.panel}>
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.panelTitle}>Visitantes</Text>
+                <Text style={styles.hint}>
+                  Vista general para porteria: activos, pendientes y gestion por unidad.
+                </Text>
+              </View>
+              <ActionButton compact label="Actualizar" onPress={() => {
+                void loadPendingAuthorizations();
+                void loadMovements();
+              }} tone="secondary" />
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{pendingAuthorizations.length}</Text>
+                <Text style={styles.statLabel}>Pend. porteria</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Pend. residente</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{movements.pendingExit.length}</Text>
+                <Text style={styles.statLabel}>Activos</Text>
+              </View>
+            </View>
+            <ActionButton
+              label="Buscar unidad para registrar"
+              onPress={() => {
+                setActivePorterView('search');
+                setHasUnitSearchResults(false);
+              }}
+            />
+            <Text style={styles.subsectionTitle}>Visitantes activos</Text>
+            {movements.pendingExit.length === 0 ? (
+              <Text style={styles.hint}>No hay visitantes activos registrados.</Text>
+            ) : (
+              movements.pendingExit.map((item) => (
+                <View key={`visitor-dashboard-${item.authorizationId}`} style={styles.historyItem}>
+                  <Text style={styles.historyType}>activo</Text>
+                  <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                  <Text style={styles.historyMeta}>{item.unitLabel} - pendiente salida</Text>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {isPorterSession && activePorterView === 'packages' ? (
+          <View style={styles.panel}>
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.panelTitle}>Paquetes</Text>
+                <Text style={styles.hint}>
+                  Registro de paquetes recibidos en porteria para notificar y consultar por unidad.
+                </Text>
+              </View>
+              <ActionButton compact label="Actualizar" onPress={loadPackages} tone="secondary" />
+            </View>
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{activePackages.length}</Text>
+                <Text style={styles.statLabel}>En porteria</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{packageItems.length}</Text>
+                <Text style={styles.statLabel}>Registros</Text>
+              </View>
+            </View>
+            <Text style={styles.subsectionTitle}>Registrar recibido</Text>
+            <TextInput
+              onChangeText={setPackageUnitQuery}
+              placeholder={selectedUnit ? selectedUnit.displayLabel : 'Unidad. Ejemplo: 35 1C'}
+              style={styles.input}
+              value={packageUnitQuery}
+            />
+            <TextInput
+              onChangeText={setPackageRecipientName}
+              placeholder="Recibe o destinatario (opcional)"
+              style={styles.input}
+              value={packageRecipientName}
+            />
+            <TextInput
+              onChangeText={setPackageType}
+              placeholder="Tipo de paquete (caja, sobre, domicilio...)"
+              style={styles.input}
+              value={packageType}
+            />
+            <ActionButton disabled={loading} label="Registrar paquete" onPress={registerPackage} />
+            <Text style={styles.subsectionTitle}>Paquetes recientes</Text>
+            {packageItems.length === 0 ? (
+              <View style={styles.emptyState}>
+                <IconBadge name="cube-outline" size="lg" tone="green" />
+                <Text style={styles.emptyStateTitle}>Sin paquetes registrados</Text>
+                <Text style={styles.emptyStateText}>
+                  Registra el paquete recibido y el sistema conservara la trazabilidad.
+                </Text>
+              </View>
+            ) : (
+              packageItems.map((item) => (
+                <View key={item.id} style={styles.historyItem}>
+                  <Text style={styles.historyType}>{item.status}</Text>
+                  <Text style={styles.historyTitle}>{item.unitLabel}</Text>
+                  <Text style={styles.historyMeta}>
+                    {item.packageType} - {item.recipientName}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {isPorterSession && activePorterView === 'settings' ? (
+          <View style={styles.panel}>
+            <Text style={styles.panelTitle}>Ajustes de porteria</Text>
+            <Text style={styles.hint}>
+              Configuracion operativa del turno y accesos rapidos para el equipo de porteria.
+            </Text>
+            <View style={styles.shortcutGrid}>
+              <ShortcutCard
+                description="Verifica que el API local o publicado este respondiendo."
+                icon="cloud-outline"
+                title="Conexion API"
+                tone="green"
+              />
+              <ShortcutCard
+                description="Los nombres y numeros de residentes permanecen protegidos."
+                icon="lock-closed-outline"
+                title="Privacidad"
+                tone="neutral"
+              />
+              <ShortcutCard
+                description="Acceso rapido al historial operativo de llamadas, mensajes y visitas."
+                icon="time-outline"
+                onPress={() => {
+                  setActivePorterView('history');
+                  setIsHistoryOpen(true);
+                  void loadHistory();
+                }}
+                title="Historial"
+              />
+            </View>
+          </View>
+        ) : null}
+
         {isPorterSession &&
         selectedUnit &&
         ['unit', 'visitors', 'calls', 'messages'].includes(activePorterView) ? (
@@ -2056,18 +2493,28 @@ export default function App() {
             <Text style={styles.hint}>{selectedUnit.protectedSummary}</Text>
             <Text style={styles.privacy}>{selectedUnit.privacyNotice}</Text>
 
+            {activePorterView !== 'unit' ? (
+              <ActionButton
+                compact
+                label="Volver a unidad"
+                onPress={() => setActivePorterView('unit')}
+                tone="secondary"
+              />
+            ) : null}
+
+            {activePorterView !== 'messages' ? (
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>
-                  {selectedUnit.activeResidents}
+                  {selectedUnitPendingPorter}
                 </Text>
-                <Text style={styles.statLabel}>Residentes</Text>
+                <Text style={styles.statLabel}>Pend. porteria</Text>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>
-                  {selectedUnit.enabledContacts}
+                  {selectedUnitPendingResident}
                 </Text>
-                <Text style={styles.statLabel}>Contactos</Text>
+                <Text style={styles.statLabel}>Pend. residente</Text>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>
@@ -2076,6 +2523,7 @@ export default function App() {
                 <Text style={styles.statLabel}>Visitas activas</Text>
               </View>
             </View>
+            ) : null}
 
             {activePorterView === 'unit' ? (
               <View style={styles.shortcutGrid}>
@@ -2089,13 +2537,13 @@ export default function App() {
                     void loadMovements();
                     void loadPendingAuthorizations();
                   }}
-                  title="Registro de visitantes"
+                  title="Visitantes"
                   tone="green"
                 />
                 <ShortcutCard
                   description="Registrar llamada a la unidad con trazabilidad."
                   icon="call-outline"
-                  onPress={() => setActivePorterView('calls')}
+                  onPress={openCallView}
                   title="Llamar a la unidad"
                 />
                 <ShortcutCard
@@ -2103,6 +2551,7 @@ export default function App() {
                   icon="chatbubble-ellipses-outline"
                   onPress={() => {
                     setActivePorterView('messages');
+                    setChatVisibleCount(15);
                     void loadChatHistory();
                   }}
                   title="Mensajeria"
@@ -2113,60 +2562,75 @@ export default function App() {
 
             {activePorterView === 'calls' ? (
               <>
-            <Text style={styles.subsectionTitle}>Registro de llamada</Text>
-            <View style={styles.callGrid}>
-              <ActionButton
-                disabled={loading || !selectedUnit.canCall}
-                flex
-                label="Iniciada"
-                onPress={() =>
-                  confirmAction(
-                    'Registrar llamada',
-                    'Marcar llamada como iniciada?',
-                    () => void registerCall('initiated'),
-                  )
-                }
-              />
-              <ActionButton
-                disabled={loading || !selectedUnit.canCall}
-                flex
-                label="Contestada"
-                onPress={() =>
-                  confirmAction(
-                    'Registrar llamada',
-                    'Marcar llamada como contestada?',
-                    () => void registerCall('answered'),
-                  )
-                }
-                tone="success"
-              />
-              <ActionButton
-                disabled={loading || !selectedUnit.canCall}
-                flex
-                label="No contesta"
-                onPress={() =>
-                  confirmAction(
-                    'Registrar llamada',
-                    'Marcar llamada como no contestada?',
-                    () => void registerCall('no_answer'),
-                  )
-                }
-                tone="secondary"
-              />
-              <ActionButton
-                disabled={loading || !selectedUnit.canCall}
-                flex
-                label="Rechazada"
-                onPress={() =>
-                  confirmAction(
-                    'Registrar llamada',
-                    'Marcar llamada como rechazada?',
-                    () => void registerCall('rejected'),
-                  )
-                }
-                tone="danger"
-              />
-            </View>
+                <View style={styles.callScreen}>
+                  <View style={styles.callAvatar}>
+                    <Ionicons color={palette.primary} name="call" size={36} />
+                  </View>
+                  <Text style={styles.callTitle}>Llamada protegida</Text>
+                  <Text style={styles.callNumber}>Numero: *** *** **48</Text>
+                  <Text style={styles.callStatus}>
+                    {activeCall?.status === 'connected'
+                      ? 'Conectada'
+                      : activeCall?.status === 'ended'
+                        ? 'Finalizada'
+                        : 'Marcando...'}
+                  </Text>
+                  <Text style={styles.callTimer}>
+                    {formatDuration(activeCall?.durationSeconds ?? 0)}
+                  </Text>
+
+                  {activeCall?.status === 'dialing' ? (
+                    <ActionButton
+                      disabled={loading || !selectedUnit.canCall}
+                      label="Marcar como conectada"
+                      onPress={() => void connectActiveCall()}
+                      tone="success"
+                    />
+                  ) : null}
+
+                  {activeCall && activeCall.status !== 'ended' ? (
+                    <ActionButton
+                      disabled={loading || !selectedUnit.canCall}
+                      label="Finalizar llamada"
+                      onPress={() => void endActiveCall()}
+                      tone="danger"
+                    />
+                  ) : null}
+
+                  {activeCall?.status === 'ended' ? (
+                    <View style={styles.callActions}>
+                      <ActionButton
+                        flex
+                        label="Volver a marcar"
+                        onPress={() => void registerCall('initiated')}
+                      />
+                      <ActionButton
+                        flex
+                        label="Mensajeria"
+                        onPress={() => {
+                          setActivePorterView('messages');
+                          void loadChatHistory();
+                        }}
+                        tone="secondary"
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                <Text style={styles.subsectionTitle}>Historial de llamadas</Text>
+                {recentCallHistory.length === 0 ? (
+                  <Text style={styles.hint}>
+                    Aun no hay llamadas recientes para esta unidad.
+                  </Text>
+                ) : (
+                  recentCallHistory.map((item) => (
+                    <View key={`recent-call-${item.id}`} style={styles.historyItem}>
+                      <Text style={styles.historyType}>llamada</Text>
+                      <Text style={styles.historyTitle}>{item.status}</Text>
+                      <Text style={styles.historyMeta}>{item.subtitle}</Text>
+                    </View>
+                  ))
+                )}
               </>
             ) : null}
 
@@ -2174,7 +2638,7 @@ export default function App() {
               <>
                 <View style={styles.divider} />
 
-                <Text style={styles.subsectionTitle}>Visitantes activos</Text>
+                <Text style={styles.subsectionTitle}>Visitantes activos en la unidad</Text>
                 {selectedUnitActiveVisits.length === 0 ? (
                   <Text style={styles.hint}>
                     Esta unidad no tiene visitantes activos en este momento.
@@ -2187,11 +2651,17 @@ export default function App() {
                       <Text style={styles.historyMeta}>
                         {item.visitorType} - pendiente salida
                       </Text>
+                      {item.vehiclePlate ? (
+                        <Text style={styles.historyMeta}>Placa: {item.vehiclePlate}</Text>
+                      ) : null}
+                      {item.photoUrl ? (
+                        <Image source={{ uri: item.photoUrl }} style={styles.visitorPhotoPreview} />
+                      ) : null}
                     </View>
                   ))
                 )}
 
-                <Text style={styles.subsectionTitle}>Pendientes por confirmar</Text>
+                <Text style={styles.subsectionTitle}>Pendientes por confirmar en porteria</Text>
                 {selectedUnitPendingAuthorizations.length === 0 ? (
                   <Text style={styles.hint}>
                     No hay solicitudes pendientes para esta unidad.
@@ -2204,59 +2674,91 @@ export default function App() {
                       <Text style={styles.historyMeta}>
                         {item.visitorType} - {item.status}
                       </Text>
+                      {item.vehiclePlate ? (
+                        <Text style={styles.historyMeta}>Placa: {item.vehiclePlate}</Text>
+                      ) : null}
+                      {item.photoUrl ? (
+                        <Image source={{ uri: item.photoUrl }} style={styles.visitorPhotoPreview} />
+                      ) : null}
                     </View>
                   ))
                 )}
 
                 <View style={styles.divider} />
 
-                <Text style={styles.panelTitle}>Registro de visitante</Text>
-                <TextInput
-                  onChangeText={setVisitorName}
-                  placeholder="Nombre del visitante"
-                  style={styles.input}
-                  value={visitorName}
+                <ActionButton
+                  label={isVisitorFormOpen ? 'Ocultar registro' : 'Registrar visitante'}
+                  onPress={() => setIsVisitorFormOpen((current) => !current)}
+                  tone={isVisitorFormOpen ? 'secondary' : 'primary'}
                 />
-                <TextInput
-                  keyboardType="number-pad"
-                  onChangeText={setVisitorDocument}
-                  placeholder="Documento"
-                  style={styles.input}
-                  value={visitorDocument}
-                />
-                <TextInput
-                  keyboardType="phone-pad"
-                  onChangeText={setVisitorPhone}
-                  placeholder="Telefono"
-                  style={styles.input}
-                  value={visitorPhone}
-                />
-                <View style={styles.twoColumns}>
-                  <TextInput
-                    onChangeText={setVisitorType}
-                    placeholder="Tipo"
-                    style={[styles.input, styles.columnInput]}
-                    value={visitorType}
-                  />
+
+                {!isVisitorFormOpen ? (
+                  <View style={styles.emptyState}>
+                    <IconBadge name="person-add-outline" size="lg" tone="green" />
+                    <Text style={styles.emptyStateTitle}>Registro bajo demanda</Text>
+                    <Text style={styles.emptyStateText}>
+                      Abre el formulario solo cuando llegue un visitante nuevo a esta unidad.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.panelTitle}>Registro de visitante</Text>
+                    <TextInput
+                      onChangeText={setVisitorName}
+                      placeholder="Nombre del visitante"
+                      style={styles.input}
+                      value={visitorName}
+                    />
+                    <TextInput
+                      keyboardType="number-pad"
+                      onChangeText={setVisitorDocument}
+                      placeholder="Documento"
+                      style={styles.input}
+                      value={visitorDocument}
+                    />
+                    <TextInput
+                      keyboardType="phone-pad"
+                      onChangeText={setVisitorPhone}
+                      placeholder="Telefono"
+                      style={styles.input}
+                      value={visitorPhone}
+                    />
+                    <TextInput
+                      autoCapitalize="characters"
+                      onChangeText={setVehiclePlate}
+                      placeholder="Placa del vehiculo (opcional)"
+                      style={styles.input}
+                      value={vehiclePlate}
+                    />
                   <TextInput
                     onChangeText={setVisitReason}
                     placeholder="Motivo"
-                    style={[styles.input, styles.columnInput]}
+                    style={styles.input}
                     value={visitReason}
                   />
-                </View>
-                <ActionButton
-                  disabled={loading}
-                  label="Registrar visitante pendiente"
-                  onPress={() =>
-                    confirmAction(
-                      'Registrar visitante',
-                      `Crear solicitud pendiente para ${visitorName || 'este visitante'}?`,
-                      () => void registerVisitor(),
-                    )
-                  }
-                  tone="warning"
-                />
+                    <ActionButton
+                      disabled={loading}
+                      label={visitorPhotoUri ? 'Cambiar foto' : 'Tomar foto'}
+                      onPress={() => void takeVisitorPhoto()}
+                      tone="secondary"
+                    />
+                    {visitorPhotoUri ? (
+                      <Image source={{ uri: visitorPhotoUri }} style={styles.visitorPhotoPreviewLarge} />
+                    ) : null}
+                    <ActionButton
+                      disabled={loading}
+                      label="Registrar visitante pendiente"
+                      onPress={() =>
+                        confirmAction(
+                          'Registrar visitante',
+                          `Crear solicitud pendiente para ${visitorName || 'este visitante'}?`,
+                          () => void registerVisitor(),
+                        )
+                      }
+                      tone="warning"
+                    />
+                  </>
+                )}
               </>
             ) : null}
 
@@ -2264,7 +2766,7 @@ export default function App() {
               <>
             <View style={styles.divider} />
 
-            <View style={styles.chatShell}>
+            <View style={styles.chatShellFull}>
               <View style={styles.chatHeader}>
                 <View style={styles.chatAvatar}>
                   <Text style={styles.chatAvatarText}>R</Text>
@@ -2281,6 +2783,14 @@ export default function App() {
               </View>
 
               <View style={styles.chatTimeline}>
+                {chatHistory.length > chatVisibleCount ? (
+                  <Pressable
+                    onPress={() => setChatVisibleCount((current) => current + 15)}
+                    style={styles.loadMoreMessages}
+                  >
+                    <Text style={styles.loadMoreMessagesText}>Ver mensajes anteriores</Text>
+                  </Pressable>
+                ) : null}
                 {chatHistory.length === 0 ? (
                   <View style={styles.emptyChat}>
                     <Text style={styles.emptyChatTitle}>Sin mensajes cargados</Text>
@@ -2289,7 +2799,7 @@ export default function App() {
                     </Text>
                   </View>
                 ) : (
-                  [...chatHistory].reverse().map((item) => {
+                  visibleChatMessages.map((item) => {
                     const isOutbound = item.direction === 'outbound';
 
                     return (
@@ -2350,30 +2860,112 @@ export default function App() {
                 />
                 <ActionButton
                   disabled={loading || !selectedUnit.canChat}
-                  label="Texto"
+                  label="Enviar"
                   onPress={() => void sendMessage('text')}
                 />
               </View>
-
-              <ActionButton
-                disabled={loading || !selectedUnit.canChat}
-                label="Enviar plantilla WhatsApp"
-                onPress={() => void sendMessage('template')}
-                tone="warning"
-              />
-              <ActionButton
-                disabled={loading || !selectedUnit.canChat}
-                label="Cargar historial del chat"
-                onPress={loadChatHistory}
-                tone="secondary"
-              />
+              <View style={styles.chatUtilityRow}>
+                <Ionicons color={palette.muted} name="mic-outline" size={18} />
+                <Text style={styles.chatUtilityText}>
+                  Audio preparado para integrar con WhatsApp Business en la siguiente fase.
+                </Text>
+              </View>
             </View>
               </>
             ) : null}
           </View>
         ) : null}
         </ScrollView>
-        {session ? (
+        {session && isPorterSession ? (
+          <View style={styles.bottomNav}>
+            <Pressable
+              onPress={() => setActivePorterView('home')}
+              style={activePorterView === 'home' ? styles.bottomNavItemActive : styles.bottomNavItem}
+            >
+              <Ionicons color={activePorterView === 'home' ? palette.primary : palette.muted} name="home" size={20} />
+              <Text style={activePorterView === 'home' ? styles.bottomNavTextActive : styles.bottomNavText}>Inicio</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setActivePorterView(selectedUnit ? 'unit' : 'search');
+                setHasUnitSearchResults(false);
+              }}
+              style={
+                ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
+              <Ionicons
+                color={
+                  ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                    ? palette.primary
+                    : palette.muted
+                }
+                name="business-outline"
+                size={20}
+              />
+              <Text
+                style={
+                  ['search', 'unit', 'calls', 'messages'].includes(activePorterView)
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
+                Unidad
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setActivePorterView('visitorDashboard');
+                void loadPendingAuthorizations();
+                void loadMovements();
+              }}
+              style={
+                ['visitorDashboard', 'visitors', 'movements', 'pending'].includes(activePorterView)
+                  ? styles.bottomNavItemActive
+                  : styles.bottomNavItem
+              }
+            >
+              <Ionicons
+                color={
+                  ['visitorDashboard', 'visitors', 'movements', 'pending'].includes(activePorterView)
+                    ? palette.primary
+                    : palette.muted
+                }
+                name="people-outline"
+                size={20}
+              />
+              <Text
+                style={
+                  ['visitorDashboard', 'visitors', 'movements', 'pending'].includes(activePorterView)
+                    ? styles.bottomNavTextActive
+                    : styles.bottomNavText
+                }
+              >
+                Visitantes
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setActivePorterView('packages');
+                void loadPackages();
+              }}
+              style={activePorterView === 'packages' ? styles.bottomNavItemActive : styles.bottomNavItem}
+            >
+              <Ionicons color={activePorterView === 'packages' ? palette.primary : palette.muted} name="cube-outline" size={20} />
+              <Text style={activePorterView === 'packages' ? styles.bottomNavTextActive : styles.bottomNavText}>Paquetes</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActivePorterView('settings')}
+              style={activePorterView === 'settings' ? styles.bottomNavItemActive : styles.bottomNavItem}
+            >
+              <Ionicons color={activePorterView === 'settings' ? palette.primary : palette.muted} name="settings-outline" size={20} />
+              <Text style={activePorterView === 'settings' ? styles.bottomNavTextActive : styles.bottomNavText}>Ajustes</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {session && !isPorterSession ? (
           <View style={styles.bottomNav}>
             <Pressable
               onPress={() => {
@@ -3024,6 +3616,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: palette.muted,
+    flexShrink: 1,
     fontFamily: appFonts.light,
     fontSize: 14,
     lineHeight: 20,
@@ -3129,6 +3722,28 @@ const styles = StyleSheet.create({
     fontFamily: appFonts.light,
     fontSize: 14,
     marginTop: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 180,
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+  },
+  emptyStateTitle: {
+    color: palette.ink,
+    fontFamily: appFonts.medium,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    color: palette.muted,
+    fontFamily: appFonts.light,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
   },
   selectedTitle: {
     color: palette.ink,
@@ -3260,6 +3875,49 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+  callScreen: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 18,
+  },
+  callAvatar: {
+    alignItems: 'center',
+    backgroundColor: '#eaf4ff',
+    borderRadius: 999,
+    height: 88,
+    justifyContent: 'center',
+    width: 88,
+  },
+  callTitle: {
+    color: palette.ink,
+    fontFamily: appFonts.black,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  callNumber: {
+    color: palette.muted,
+    fontFamily: appFonts.medium,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  callStatus: {
+    color: palette.green,
+    fontFamily: appFonts.medium,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  callTimer: {
+    color: palette.ink,
+    fontFamily: appFonts.black,
+    fontSize: 42,
+    fontWeight: '900',
+  },
+  callActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
   callButton: {
     alignItems: 'center',
     borderRadius: 8,
@@ -3334,6 +3992,15 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     overflow: 'hidden',
   },
+  chatShellFull: {
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
+    borderRadius: 8,
+    borderWidth: 0,
+    flex: 1,
+    minHeight: 520,
+    overflow: 'hidden',
+  },
   chatHeader: {
     alignItems: 'center',
     backgroundColor: palette.navy,
@@ -3381,8 +4048,21 @@ const styles = StyleSheet.create({
   },
   chatTimeline: {
     gap: 8,
-    minHeight: 220,
+    minHeight: 360,
     paddingVertical: 12,
+  },
+  loadMoreMessages: {
+    alignSelf: 'center',
+    backgroundColor: '#eaf4ff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  loadMoreMessagesText: {
+    color: palette.primaryDark,
+    fontFamily: appFonts.medium,
+    fontSize: 12,
+    fontWeight: '900',
   },
   emptyChat: {
     alignItems: 'center',
@@ -3503,5 +4183,31 @@ const styles = StyleSheet.create({
     fontFamily: appFonts.medium,
     fontSize: 14,
     fontWeight: '900',
+  },
+  chatUtilityRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  chatUtilityText: {
+    color: palette.muted,
+    flex: 1,
+    fontFamily: appFonts.light,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  visitorPhotoPreview: {
+    borderRadius: 8,
+    height: 76,
+    marginTop: 8,
+    width: 96,
+  },
+  visitorPhotoPreviewLarge: {
+    alignSelf: 'center',
+    borderRadius: 8,
+    height: 180,
+    width: '100%',
   },
 });

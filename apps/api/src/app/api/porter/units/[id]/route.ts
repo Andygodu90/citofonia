@@ -73,7 +73,7 @@ export async function GET(request: Request, { params }: Params) {
       enabledContacts: contact.enabled_contacts,
       canCall: Boolean(contact.can_call),
       canChat: Boolean(contact.can_chat),
-      protectedSummary: "Residente principal disponible",
+      protectedSummary: "Gestion operativa de la unidad seleccionada",
       privacyNotice:
         "Los nombres y telefonos estan protegidos para el usuario de porteria.",
     },

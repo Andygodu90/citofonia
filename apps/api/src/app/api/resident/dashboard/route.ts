@@ -41,6 +41,8 @@ export async function GET(request: Request) {
         aa.id,
         v.full_name as visitor_name,
         v.visitor_type,
+        v.vehicle_plate,
+        v.photo_url,
         aa.status,
         aa.notes,
         aa.created_at
@@ -60,7 +62,9 @@ export async function GET(request: Request) {
         ae.event_type,
         ae.status,
         ae.occurred_at,
-        coalesce(v.full_name, 'Visitante') as visitor_name
+        coalesce(v.full_name, 'Visitante') as visitor_name,
+        v.vehicle_plate,
+        v.photo_url
       from access_events ae
       left join visitors v on v.id = ae.visitor_id
       where ae.unit_id = $1
@@ -87,6 +91,8 @@ export async function GET(request: Request) {
       status: row.status,
       notes: row.notes,
       createdAt: row.created_at,
+      vehiclePlate: row.vehicle_plate,
+      photoUrl: row.photo_url,
     })),
     history: historyResult.rows.map((row) => ({
       id: row.id,
@@ -94,6 +100,8 @@ export async function GET(request: Request) {
       status: row.status,
       visitorName: row.visitor_name,
       occurredAt: row.occurred_at,
+      vehiclePlate: row.vehicle_plate,
+      photoUrl: row.photo_url,
     })),
   });
 }

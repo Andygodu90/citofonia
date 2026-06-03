@@ -71,11 +71,34 @@ create table if not exists visitors (
   document_id text,
   phone text,
   visitor_type text not null default 'guest',
+  vehicle_plate text,
+  photo_url text,
   notes text,
   is_restricted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table visitors
+  add column if not exists vehicle_plate text,
+  add column if not exists photo_url text;
+
+create table if not exists package_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid not null references properties(id),
+  unit_id uuid not null references residential_units(id),
+  recipient_name text not null default 'Residente',
+  package_type text not null default 'Paquete',
+  status text not null default 'received',
+  received_by uuid references app_users(id),
+  delivered_at timestamptz,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_package_deliveries_property_time
+  on package_deliveries(property_id, created_at desc);
 
 create table if not exists access_authorizations (
   id uuid primary key default gen_random_uuid(),
