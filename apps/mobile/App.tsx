@@ -215,6 +215,26 @@ type ShortcutCardProps = {
   onPress?: () => void;
 };
 
+type RoleOverviewViewProps = {
+  title: string;
+  eyebrow: string;
+  description: string;
+  badge: string;
+  icon: IconName;
+  stats: Array<{
+    icon: IconName;
+    label: string;
+    tone?: 'blue' | 'green' | 'amber' | 'neutral';
+    value: string;
+  }>;
+  shortcuts: Array<{
+    description: string;
+    icon: IconName;
+    title: string;
+    tone?: 'blue' | 'green' | 'amber' | 'neutral';
+  }>;
+};
+
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
     return {
@@ -334,6 +354,126 @@ function ShortcutCard({
   );
 }
 
+function RoleOverviewView({
+  title,
+  eyebrow,
+  description,
+  badge,
+  icon,
+  stats,
+  shortcuts,
+}: RoleOverviewViewProps) {
+  return (
+    <View style={styles.roleView}>
+      <View style={styles.panel}>
+        <View style={styles.panelHeadingRow}>
+          <View style={styles.panelHeadingText}>
+            <Text style={styles.label}>{eyebrow}</Text>
+            <Text style={styles.selectedTitle}>{title}</Text>
+            <Text style={styles.hint}>{description}</Text>
+          </View>
+          <IconBadge name={icon} size="lg" />
+        </View>
+        <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+          {badge}
+        </Chip>
+
+        <View style={styles.statsRow}>
+          {stats.map((item) => (
+            <View key={`${title}-${item.label}`} style={styles.statBox}>
+              <IconBadge name={item.icon} size="sm" tone={item.tone ?? 'blue'} />
+              <Text style={styles.statValue}>{item.value}</Text>
+              <Text style={styles.statLabel}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.shortcutGrid}>
+          {shortcuts.map((item) => (
+            <ShortcutCard
+              key={`${title}-${item.title}`}
+              description={item.description}
+              icon={item.icon}
+              title={item.title}
+              tone={item.tone}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SuperAdminView() {
+  return (
+    <RoleOverviewView
+      badge="Super Admin"
+      description="Vista independiente para controlar la plataforma y preparar la gestion de conjuntos."
+      eyebrow="Panel principal"
+      icon="shield-checkmark-outline"
+      shortcuts={[
+        {
+          description: 'Administrar conjuntos y configuraciones generales.',
+          icon: 'business-outline',
+          title: 'Conjuntos',
+        },
+        {
+          description: 'Gestionar administradores, porteria y residentes.',
+          icon: 'people-outline',
+          title: 'Usuarios',
+        },
+        {
+          description: 'Consultar actividad global del sistema.',
+          icon: 'bar-chart-outline',
+          title: 'Reportes',
+          tone: 'neutral',
+        },
+      ]}
+      stats={[
+        { icon: 'business-outline', label: 'Conjuntos', value: '1' },
+        { icon: 'people-outline', label: 'Usuarios', value: 'Base' },
+        { icon: 'pulse-outline', label: 'Sistema', tone: 'green', value: 'OK' },
+      ]}
+      title="Super Admin"
+    />
+  );
+}
+
+function AdminView() {
+  return (
+    <RoleOverviewView
+      badge="Admin"
+      description="Vista independiente para administrar Arcadas de San Isidro."
+      eyebrow="Administracion"
+      icon="business-outline"
+      shortcuts={[
+        {
+          description: 'Gestiona la informacion de los residentes.',
+          icon: 'people-outline',
+          title: 'Residentes',
+        },
+        {
+          description: 'Administra bloques, apartamentos y contactos.',
+          icon: 'business-outline',
+          title: 'Apartamentos',
+        },
+        {
+          description: 'Consulta actividad y reportes del conjunto.',
+          icon: 'bar-chart-outline',
+          title: 'Reportes',
+          tone: 'neutral',
+        },
+      ]}
+      stats={[
+        { icon: 'people-outline', label: 'Residentes', value: '300' },
+        { icon: 'business-outline', label: 'Unidades', value: '300' },
+        { icon: 'mail-outline', label: 'Invitaciones', tone: 'green', value: 'Hoy' },
+      ]}
+      title="Administracion"
+    />
+  );
+}
+
 type AccordionToggleProps = {
   title: string;
   summary: string;
@@ -415,9 +555,9 @@ export default function App() {
   });
 
   const normalizedApiUrl = DEFAULT_API_URL.replace(/\/$/, '');
-  const isPorterSession = Boolean(
-    session && ['porter', 'admin', 'superadmin'].includes(session.role),
-  );
+  const isSuperAdminSession = session?.role === 'superadmin';
+  const isAdminSession = session?.role === 'admin';
+  const isPorterSession = session?.role === 'porter';
   const isResidentSession = session?.role === 'resident';
 
   if (!fontsLoaded) {
@@ -507,7 +647,11 @@ export default function App() {
         text:
           data.user.role === 'resident'
             ? 'Sesion de residente iniciada.'
-            : 'Sesion iniciada. Ya puedes buscar unidades.',
+            : data.user.role === 'porter'
+              ? 'Sesion de porteria iniciada. Ya puedes buscar unidades.'
+              : data.user.role === 'admin'
+                ? 'Sesion de administracion iniciada.'
+                : 'Sesion de superadmin iniciada.',
       });
 
       if (data.user.role === 'resident') {
@@ -1249,7 +1393,13 @@ export default function App() {
               />
               <View>
                 <Text style={styles.sessionLabel}>
-                  {isResidentSession ? 'Mi hogar' : 'Porteria'}
+                  {isResidentSession
+                    ? 'Mi hogar'
+                    : isPorterSession
+                      ? 'Porteria'
+                      : isAdminSession
+                        ? 'Administracion'
+                        : 'Super Admin'}
                 </Text>
                 <Text style={styles.sessionUser}>
                   {session.username} - {session.role}
@@ -1266,6 +1416,10 @@ export default function App() {
             <Text style={styles.noticeText}>{notice.text}</Text>
           </View>
         ) : null}
+
+        {isSuperAdminSession ? <SuperAdminView /> : null}
+
+        {isAdminSession ? <AdminView /> : null}
 
         {isPorterSession ? (
           <View style={styles.panel}>
@@ -1933,11 +2087,23 @@ export default function App() {
             <View style={styles.bottomNavItem}>
               <Ionicons
                 color={palette.muted}
-                name={isResidentSession ? 'mail-outline' : 'people-outline'}
+                name={
+                  isResidentSession
+                    ? 'mail-outline'
+                    : isPorterSession
+                      ? 'people-outline'
+                      : 'bar-chart-outline'
+                }
                 size={20}
               />
               <Text style={styles.bottomNavText}>
-                {isResidentSession ? 'Invitaciones' : 'Porteria'}
+                {isResidentSession
+                  ? 'Invitaciones'
+                  : isPorterSession
+                    ? 'Porteria'
+                    : isAdminSession
+                      ? 'Admin'
+                      : 'Super Admin'}
               </Text>
             </View>
             <View style={styles.bottomNavItem}>
@@ -2352,6 +2518,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  roleView: {
+    gap: 12,
   },
   utilityPanel: {
     backgroundColor: '#ffffff',
