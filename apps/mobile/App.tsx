@@ -35,19 +35,19 @@ function getDefaultApiUrl() {
 const DEFAULT_API_URL = getDefaultApiUrl();
 
 const palette = {
-  bg: '#eef4f8',
+  bg: '#f4f8fc',
   surface: '#ffffff',
-  surfaceMuted: '#f6f8fb',
-  ink: '#172033',
-  muted: '#667085',
-  line: '#dde5ee',
-  primary: '#0f766e',
-  primaryDark: '#134e4a',
-  navy: '#172554',
-  amber: '#f59e0b',
-  green: '#16a34a',
+  surfaceMuted: '#f6faff',
+  ink: '#08214a',
+  muted: '#4d6280',
+  line: '#dce8f5',
+  primary: '#1877f2',
+  primaryDark: '#0b4fb3',
+  navy: '#08214a',
+  amber: '#f6b440',
+  green: '#22a06b',
   red: '#dc2626',
-  blue: '#2563eb',
+  blue: '#1877f2',
 };
 
 const paperTheme = {
@@ -1039,9 +1039,9 @@ export default function App() {
               dense
               mode="outlined"
               onChangeText={setUsername}
-              activeOutlineColor="#8a735d"
+              activeOutlineColor={palette.primary}
               label="Usuario"
-              outlineColor="#cdbfaa"
+              outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
               style={styles.loginInput}
               value={username}
@@ -1052,9 +1052,9 @@ export default function App() {
               dense
               mode="outlined"
               onChangeText={setPassword}
-              activeOutlineColor="#8a735d"
+              activeOutlineColor={palette.primary}
               label="Contrasena"
-              outlineColor="#cdbfaa"
+              outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
               secureTextEntry
               style={styles.loginInput}
@@ -1064,13 +1064,13 @@ export default function App() {
               disabled={loading}
               mode="contained"
               onPress={login}
-              buttonColor="#8a735d"
-              textColor="#fffaf2"
+              buttonColor={palette.primary}
+              textColor="#ffffff"
               style={styles.loginButton}
             >
               Ingresar
             </PaperButton>
-            {loading ? <ActivityIndicator color="#8a735d" /> : null}
+            {loading ? <ActivityIndicator color={palette.primary} /> : null}
             {notice.tone === 'error' ? (
               <View style={[styles.notice, styles.errorNotice]}>
                 <Text style={styles.noticeText}>{notice.text}</Text>
@@ -1726,7 +1726,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bg,
   },
   loginScreen: {
-    backgroundColor: '#f4efe8',
+    backgroundColor: '#f4f8fc',
   },
   content: {
     alignSelf: 'center',
@@ -1742,14 +1742,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   loginShell: {
-    backgroundColor: '#fffaf2',
-    borderColor: '#ddd2c4',
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     gap: 14,
     paddingHorizontal: 24,
     paddingVertical: 30,
-    shadowColor: '#5f5145',
+    shadowColor: '#0b3778',
     shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -1761,37 +1761,37 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   loginEyebrow: {
-    color: '#8a735d',
+    color: palette.primary,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   loginBrand: {
-    color: '#4a4037',
+    color: palette.ink,
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 30,
     textAlign: 'center',
   },
   loginDivider: {
-    backgroundColor: '#cdbfaa',
+    backgroundColor: palette.primary,
     height: 2,
     marginTop: 4,
     width: 72,
   },
   loginTitle: {
-    color: '#5f5145',
+    color: palette.ink,
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 4,
     textAlign: 'center',
   },
   loginInput: {
-    backgroundColor: '#fffdf8',
+    backgroundColor: '#ffffff',
     fontSize: 15,
   },
   loginInputOutline: {
-    borderColor: '#cdbfaa',
+    borderColor: palette.line,
     borderRadius: 8,
   },
   loginButton: {
@@ -1801,19 +1801,21 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   loginHint: {
-    color: '#786b5d',
+    color: palette.muted,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
     textAlign: 'center',
   },
   headerCard: {
-    backgroundColor: palette.navy,
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
+    borderWidth: 1,
     marginBottom: 14,
     marginTop: 8,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.16,
+    shadowColor: '#0b3778',
+    shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
@@ -1829,7 +1831,7 @@ const styles = StyleSheet.create({
   },
   brandMark: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#eaf4ff',
     borderRadius: 8,
     height: 44,
     justifyContent: 'center',
@@ -1844,18 +1846,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    color: '#bde7e3',
+    color: palette.primary,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   title: {
-    color: '#ffffff',
+    color: palette.ink,
     fontSize: 25,
     fontWeight: '900',
   },
   subtitle: {
-    color: '#dce7f3',
+    color: palette.muted,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -1864,20 +1866,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metricTile: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#f6faff',
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
     padding: 10,
   },
   metricValue: {
-    color: '#ffffff',
+    color: palette.ink,
     fontSize: 17,
     fontWeight: '900',
   },
   metricLabel: {
-    color: '#b9c8da',
+    color: palette.muted,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
@@ -1890,14 +1892,14 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 12,
     padding: 16,
-    shadowColor: '#102033',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowColor: '#0b3778',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   utilityPanel: {
-    backgroundColor: '#f8fbfd',
+    backgroundColor: '#ffffff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -1912,7 +1914,7 @@ const styles = StyleSheet.create({
   },
   accordionHeader: {
     alignItems: 'center',
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: '#f6faff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -1933,7 +1935,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   accordionChip: {
-    backgroundColor: '#e6f3f2',
+    backgroundColor: '#eaf4ff',
   },
   accordionChipText: {
     color: palette.primaryDark,
@@ -1941,10 +1943,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   accordionChipOpen: {
-    backgroundColor: '#eef2ff',
+    backgroundColor: '#e8f7ef',
   },
   accordionChipOpenText: {
-    color: palette.navy,
+    color: palette.green,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -1961,7 +1963,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   roleChip: {
-    backgroundColor: '#ccfbf1',
+    backgroundColor: '#eaf4ff',
   },
   roleChipText: {
     color: palette.primaryDark,
@@ -2079,12 +2081,12 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   infoNotice: {
-    backgroundColor: '#ecfeff',
-    borderColor: '#a5f3fc',
+    backgroundColor: '#eaf4ff',
+    borderColor: '#b9dcff',
   },
   successNotice: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
+    backgroundColor: '#e8f7ef',
+    borderColor: '#b9e7cf',
   },
   errorNotice: {
     backgroundColor: '#fef2f2',
@@ -2096,7 +2098,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   unitItem: {
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: '#ffffff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -2105,7 +2107,7 @@ const styles = StyleSheet.create({
   },
   unitItemSelected: {
     borderColor: palette.primary,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#eaf4ff',
   },
   unitTitle: {
     color: palette.ink,
@@ -2123,7 +2125,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   privacy: {
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#fff8e7',
     borderRadius: 8,
     color: '#7c2d12',
     fontSize: 14,
@@ -2144,7 +2146,7 @@ const styles = StyleSheet.create({
   },
   inlineButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ccfbf1',
+    backgroundColor: '#eaf4ff',
     borderRadius: 8,
     marginTop: 10,
     paddingHorizontal: 12,
@@ -2156,15 +2158,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   historyItem: {
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: '#ffffff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     padding: 12,
   },
   pendingItem: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fcd34d',
+    backgroundColor: '#fff8e7',
+    borderColor: '#f6d98a',
     borderRadius: 8,
     borderWidth: 1,
     padding: 12,
@@ -2212,7 +2214,7 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     backgroundColor: '#ffffff',
-    borderColor: '#fecaca',
+    borderColor: '#f4b9b9',
     borderWidth: 1,
   },
   decisionButtonText: {
@@ -2243,7 +2245,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   statBox: {
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: '#f6faff',
     borderColor: palette.line,
     borderWidth: 1,
     borderRadius: 8,
@@ -2275,7 +2277,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   warningButton: {
-    backgroundColor: palette.amber,
+    backgroundColor: '#fff0c7',
   },
   primaryButtonText: {
     color: '#ffffff',
@@ -2288,7 +2290,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   warningButtonText: {
-    color: palette.ink,
+    color: '#7c5607',
     fontSize: 16,
     fontWeight: '900',
   },
@@ -2297,7 +2299,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   chatShell: {
-    backgroundColor: '#e7f0ea',
+    backgroundColor: '#f4f8fc',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -2305,21 +2307,21 @@ const styles = StyleSheet.create({
   },
   chatHeader: {
     alignItems: 'center',
-    backgroundColor: palette.primaryDark,
+    backgroundColor: palette.navy,
     flexDirection: 'row',
     gap: 10,
     padding: 12,
   },
   chatAvatar: {
     alignItems: 'center',
-    backgroundColor: '#ccfbf1',
+    backgroundColor: '#eaf4ff',
     borderRadius: 18,
     height: 36,
     justifyContent: 'center',
     width: 36,
   },
   chatAvatarText: {
-    color: palette.primaryDark,
+    color: palette.primary,
     fontSize: 16,
     fontWeight: '900',
   },
@@ -2332,7 +2334,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chatSubtitle: {
-    color: '#bde7e3',
+    color: '#d8e9ff',
     fontSize: 12,
     marginTop: 1,
   },
@@ -2351,7 +2353,7 @@ const styles = StyleSheet.create({
   },
   emptyChat: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: '#ffffff',
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 170,
@@ -2389,7 +2391,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 2,
   },
   chatBubbleOutbound: {
-    backgroundColor: '#d9fdd3',
+    backgroundColor: '#e8f7ef',
     borderTopRightRadius: 2,
   },
   chatBubbleText: {
@@ -2400,7 +2402,7 @@ const styles = StyleSheet.create({
     color: palette.ink,
   },
   chatBubbleTextOutbound: {
-    color: '#14351f',
+    color: '#0e4a32',
   },
   chatBubbleFooter: {
     alignItems: 'center',
@@ -2417,7 +2419,7 @@ const styles = StyleSheet.create({
     color: palette.muted,
   },
   chatTimeOutbound: {
-    color: '#4d7c54',
+    color: '#3f7f61',
   },
   chatCheck: {
     color: '#34b7f1',
@@ -2426,7 +2428,7 @@ const styles = StyleSheet.create({
   },
   chatComposer: {
     alignItems: 'flex-end',
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#ffffff',
     borderTopColor: 'rgba(15, 23, 42, 0.08)',
     borderRadius: 8,
     borderTopWidth: 1,
@@ -2437,7 +2439,7 @@ const styles = StyleSheet.create({
   },
   chatInput: {
     backgroundColor: '#ffffff',
-    borderColor: '#d7dde5',
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     color: palette.ink,
