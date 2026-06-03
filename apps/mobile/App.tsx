@@ -235,6 +235,16 @@ type RoleOverviewViewProps = {
 };
 
 type AdminTab = 'home' | 'admin' | 'settings';
+type PorterView =
+  | 'home'
+  | 'search'
+  | 'unit'
+  | 'visitors'
+  | 'calls'
+  | 'messages'
+  | 'movements'
+  | 'pending'
+  | 'history';
 
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
@@ -646,8 +656,10 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('home');
+  const [activePorterView, setActivePorterView] =
+    useState<PorterView>('home');
   const [session, setSession] = useState<UserSession | null>(null);
-  const [query, setQuery] = useState('31 1A');
+  const [query, setQuery] = useState('');
   const [units, setUnits] = useState<UnitSearchResult[]>([]);
   const [selectedSummary, setSelectedSummary] =
     useState<UnitSearchResult | null>(null);
@@ -690,6 +702,16 @@ export default function App() {
   const isAdminSession = session?.role === 'admin';
   const isPorterSession = session?.role === 'porter';
   const isResidentSession = session?.role === 'resident';
+  const selectedUnitActiveVisits = selectedUnit
+    ? movements.pendingExit.filter(
+        (item) => item.unitLabel === selectedUnit.displayLabel,
+      )
+    : [];
+  const selectedUnitPendingAuthorizations = selectedUnit
+    ? pendingAuthorizations.filter(
+        (item) => item.unitLabel === selectedUnit.displayLabel,
+      )
+    : [];
 
   if (!fontsLoaded) {
     return (
@@ -774,6 +796,7 @@ export default function App() {
         residentId: data.user.residentId ?? null,
       });
       setActiveAdminTab('home');
+      setActivePorterView('home');
       setNotice({
         tone: 'info',
         text: '',
@@ -806,16 +829,16 @@ export default function App() {
     setMovements({ pendingEntry: [], pendingExit: [] });
     setIsMovementsOpen(false);
     setResidentDashboard(null);
+    setActiveAdminTab('home');
+    setActivePorterView('home');
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
   }
 
-  async function searchUnits() {
-    if (!query.trim()) {
-      showValidationError('Escribe un bloque o apartamento para buscar.');
-      return;
-    }
+  async function searchUnits(overrideQuery?: string) {
+    const searchText = overrideQuery ?? query;
 
     setLoading(true);
+    setActivePorterView('search');
     setSelectedSummary(null);
     setSelectedUnit(null);
     setHistoryItems([]);
@@ -828,7 +851,7 @@ export default function App() {
     setNotice({ tone: 'info', text: 'Buscando unidades...' });
 
     try {
-      const searchQuery = encodeURIComponent(query.trim());
+      const searchQuery = encodeURIComponent(searchText.trim());
       const data = await request<{ units: UnitSearchResult[] }>(
         `/api/porter/units?query=${searchQuery}`,
       );
@@ -839,7 +862,9 @@ export default function App() {
         text:
           data.units.length === 0
             ? 'No encontramos unidades con ese criterio.'
-            : `Encontramos ${data.units.length} resultado(s).`,
+            : searchText.trim()
+              ? `Encontramos ${data.units.length} resultado(s).`
+              : `Listado de unidades cargado: ${data.units.length}.`,
       });
     } catch (error) {
       setNotice({
@@ -861,7 +886,14 @@ export default function App() {
       const data = await request<{ unit: UnitDetail }>(
         `/api/porter/units/${unit.id}`,
       );
+      const [movementData, pendingData] = await Promise.all([
+        request<MovementsState>('/api/porter/movements'),
+        request<{ items: PendingAuthorization[] }>('/api/porter/authorizations'),
+      ]);
       setSelectedUnit(data.unit);
+      setMovements(movementData);
+      setPendingAuthorizations(pendingData.items);
+      setActivePorterView('unit');
       setNotice({
         tone: 'success',
         text: 'Unidad seleccionada. Datos sensibles protegidos.',
@@ -886,6 +918,7 @@ export default function App() {
     setChatHistory([]);
     setPendingAuthorizations([]);
     setMovements({ pendingEntry: [], pendingExit: [] });
+    setActivePorterView('search');
     setNotice({
       tone: 'info',
       text: 'Puedes buscar o seleccionar otra unidad.',
@@ -1517,7 +1550,7 @@ export default function App() {
           <AdminSettingsView />
         ) : null}
 
-        {isPorterSession ? (
+        {isPorterSession && activePorterView === 'home' ? (
           <View style={styles.panel}>
             <View style={styles.panelHeadingRow}>
               <View>
@@ -1546,16 +1579,60 @@ export default function App() {
               </View>
             </View>
             <View style={styles.shortcutGrid}>
+              <ActionButton
+                label="BUSCAR UNIDAD"
+                onPress={() => {
+                  setActivePorterView('search');
+                  if (units.length === 0) {
+                    void searchUnits();
+                  }
+                }}
+              />
               <ShortcutCard
                 description="Busca apartamentos y contacta residentes."
                 icon="search-outline"
+                onPress={() => {
+                  setActivePorterView('search');
+                  if (units.length === 0) {
+                    void searchUnits();
+                  }
+                }}
                 title="Buscar unidad"
               />
               <ShortcutCard
                 description="Consulta registros recientes."
                 icon="time-outline"
+                onPress={() => {
+                  setActivePorterView('history');
+                  setIsHistoryOpen(true);
+                  if (historyItems.length === 0) {
+                    void loadHistory();
+                  }
+                }}
                 title="Historial"
                 tone="neutral"
+              />
+              <ShortcutCard
+                description="Controla visitantes aprobados y salidas."
+                icon="log-in-outline"
+                onPress={() => {
+                  setActivePorterView('movements');
+                  setIsMovementsOpen(true);
+                  void loadMovements();
+                }}
+                title="Entradas y salidas"
+                tone="green"
+              />
+              <ShortcutCard
+                description="Aprobar o rechazar ingresos pendientes."
+                icon="id-card-outline"
+                onPress={() => {
+                  setActivePorterView('pending');
+                  setIsPendingOpen(true);
+                  void loadPendingAuthorizations();
+                }}
+                title="Ingresos pendientes"
+                tone="amber"
               />
             </View>
           </View>
@@ -1687,10 +1764,17 @@ export default function App() {
           </View>
         ) : null}
 
-        {isPorterSession ? (
+        {isPorterSession && activePorterView === 'search' ? (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Buscador de unidades</Text>
-            <Text style={styles.hint}>Consulta por bloque, apartamento o combinacion.</Text>
+            <View style={styles.panelHeadingRow}>
+              <View>
+                <Text style={styles.panelTitle}>Consulta de apartamentos</Text>
+                <Text style={styles.hint}>
+                  Lista completa o filtro por bloque, apartamento o combinacion.
+                </Text>
+              </View>
+              <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
+            </View>
             <View style={styles.searchRow}>
               <PaperTextInput
                 autoCapitalize="characters"
@@ -1699,6 +1783,7 @@ export default function App() {
                 onChangeText={setQuery}
                 label="Bloque o apto"
                 outlineStyle={styles.paperInputOutline}
+                placeholder="Ejemplo: 35 1C"
                 style={[styles.paperInput, styles.searchInput]}
                 value={query}
               />
@@ -1706,9 +1791,19 @@ export default function App() {
                 compact
                 disabled={loading}
                 label="Buscar"
-                onPress={searchUnits}
+                onPress={() => void searchUnits()}
               />
             </View>
+            <ActionButton
+              compact
+              disabled={loading}
+              label="Ver todas las unidades"
+              onPress={() => {
+                setQuery('');
+                void searchUnits('');
+              }}
+              tone="secondary"
+            />
 
             {loading ? <ActivityIndicator color="#111827" /> : null}
 
@@ -1733,6 +1828,7 @@ export default function App() {
                   <Pressable onPress={() => loadUnit(item)} style={styles.unitItem}>
                     <Text style={styles.unitTitle}>{item.displayLabel}</Text>
                     <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
+                    <Text style={styles.unitMeta}>Tocar para abrir opciones de la unidad</Text>
                   </Pressable>
                 )}
                 scrollEnabled={false}
@@ -1741,8 +1837,9 @@ export default function App() {
           </View>
         ) : null}
 
-        {isPorterSession ? (
+        {isPorterSession && activePorterView === 'movements' ? (
           <View style={styles.panel}>
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
             <AccordionToggle
               isOpen={isMovementsOpen}
               onPress={toggleMovements}
@@ -1823,8 +1920,9 @@ export default function App() {
           </View>
         ) : null}
 
-        {isPorterSession ? (
+        {isPorterSession && activePorterView === 'pending' ? (
           <View style={styles.panel}>
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
             <AccordionToggle
               isOpen={isPendingOpen}
               onPress={togglePendingAuthorizations}
@@ -1893,8 +1991,9 @@ export default function App() {
           </View>
         ) : null}
 
-        {isPorterSession ? (
+        {isPorterSession && activePorterView === 'history' ? (
           <View style={styles.panel}>
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
             <AccordionToggle
               isOpen={isHistoryOpen}
               onPress={toggleHistory}
@@ -1938,10 +2037,22 @@ export default function App() {
           </View>
         ) : null}
 
-        {isPorterSession && selectedUnit ? (
+        {isPorterSession &&
+        selectedUnit &&
+        ['unit', 'visitors', 'calls', 'messages'].includes(activePorterView) ? (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Unidad seleccionada</Text>
-            <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
+            <View style={styles.panelHeadingRow}>
+              <View style={styles.panelHeadingText}>
+                <Text style={styles.panelTitle}>Unidad seleccionada</Text>
+                <Text style={styles.selectedTitle}>{selectedUnit.displayLabel}</Text>
+              </View>
+              <ActionButton
+                compact
+                label="Buscar"
+                onPress={() => setActivePorterView('search')}
+                tone="secondary"
+              />
+            </View>
             <Text style={styles.hint}>{selectedUnit.protectedSummary}</Text>
             <Text style={styles.privacy}>{selectedUnit.privacyNotice}</Text>
 
@@ -1958,8 +2069,50 @@ export default function App() {
                 </Text>
                 <Text style={styles.statLabel}>Contactos</Text>
               </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {selectedUnitActiveVisits.length}
+                </Text>
+                <Text style={styles.statLabel}>Visitas activas</Text>
+              </View>
             </View>
 
+            {activePorterView === 'unit' ? (
+              <View style={styles.shortcutGrid}>
+                <ShortcutCard
+                  description="Registrar visitantes y ver visitas activas o pendientes."
+                  icon="person-add-outline"
+                  onPress={() => {
+                    setActivePorterView('visitors');
+                    setIsMovementsOpen(true);
+                    setIsPendingOpen(true);
+                    void loadMovements();
+                    void loadPendingAuthorizations();
+                  }}
+                  title="Registro de visitantes"
+                  tone="green"
+                />
+                <ShortcutCard
+                  description="Registrar llamada a la unidad con trazabilidad."
+                  icon="call-outline"
+                  onPress={() => setActivePorterView('calls')}
+                  title="Llamar a la unidad"
+                />
+                <ShortcutCard
+                  description="Abrir chat protegido con el residente."
+                  icon="chatbubble-ellipses-outline"
+                  onPress={() => {
+                    setActivePorterView('messages');
+                    void loadChatHistory();
+                  }}
+                  title="Mensajeria"
+                  tone="neutral"
+                />
+              </View>
+            ) : null}
+
+            {activePorterView === 'calls' ? (
+              <>
             <Text style={styles.subsectionTitle}>Registro de llamada</Text>
             <View style={styles.callGrid}>
               <ActionButton
@@ -2014,57 +2167,101 @@ export default function App() {
                 tone="danger"
               />
             </View>
+              </>
+            ) : null}
 
-            <View style={styles.divider} />
+            {activePorterView === 'visitors' ? (
+              <>
+                <View style={styles.divider} />
 
-            <Text style={styles.panelTitle}>Registro de visitante</Text>
-            <TextInput
-              onChangeText={setVisitorName}
-              placeholder="Nombre del visitante"
-              style={styles.input}
-              value={visitorName}
-            />
-            <TextInput
-              keyboardType="number-pad"
-              onChangeText={setVisitorDocument}
-              placeholder="Documento"
-              style={styles.input}
-              value={visitorDocument}
-            />
-            <TextInput
-              keyboardType="phone-pad"
-              onChangeText={setVisitorPhone}
-              placeholder="Telefono"
-              style={styles.input}
-              value={visitorPhone}
-            />
-            <View style={styles.twoColumns}>
-              <TextInput
-                onChangeText={setVisitorType}
-                placeholder="Tipo"
-                style={[styles.input, styles.columnInput]}
-                value={visitorType}
-              />
-              <TextInput
-                onChangeText={setVisitReason}
-                placeholder="Motivo"
-                style={[styles.input, styles.columnInput]}
-                value={visitReason}
-              />
-            </View>
-            <ActionButton
-              disabled={loading}
-              label="Registrar visitante pendiente"
-              onPress={() =>
-                confirmAction(
-                  'Registrar visitante',
-                  `Crear solicitud pendiente para ${visitorName || 'este visitante'}?`,
-                  () => void registerVisitor(),
-                )
-              }
-              tone="warning"
-            />
+                <Text style={styles.subsectionTitle}>Visitantes activos</Text>
+                {selectedUnitActiveVisits.length === 0 ? (
+                  <Text style={styles.hint}>
+                    Esta unidad no tiene visitantes activos en este momento.
+                  </Text>
+                ) : (
+                  selectedUnitActiveVisits.map((item) => (
+                    <View key={item.authorizationId} style={styles.historyItem}>
+                      <Text style={styles.historyType}>activo</Text>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.visitorType} - pendiente salida
+                      </Text>
+                    </View>
+                  ))
+                )}
 
+                <Text style={styles.subsectionTitle}>Pendientes por confirmar</Text>
+                {selectedUnitPendingAuthorizations.length === 0 ? (
+                  <Text style={styles.hint}>
+                    No hay solicitudes pendientes para esta unidad.
+                  </Text>
+                ) : (
+                  selectedUnitPendingAuthorizations.map((item) => (
+                    <View key={item.id} style={styles.pendingItem}>
+                      <Text style={styles.historyType}>pendiente</Text>
+                      <Text style={styles.historyTitle}>{item.visitorName}</Text>
+                      <Text style={styles.historyMeta}>
+                        {item.visitorType} - {item.status}
+                      </Text>
+                    </View>
+                  ))
+                )}
+
+                <View style={styles.divider} />
+
+                <Text style={styles.panelTitle}>Registro de visitante</Text>
+                <TextInput
+                  onChangeText={setVisitorName}
+                  placeholder="Nombre del visitante"
+                  style={styles.input}
+                  value={visitorName}
+                />
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setVisitorDocument}
+                  placeholder="Documento"
+                  style={styles.input}
+                  value={visitorDocument}
+                />
+                <TextInput
+                  keyboardType="phone-pad"
+                  onChangeText={setVisitorPhone}
+                  placeholder="Telefono"
+                  style={styles.input}
+                  value={visitorPhone}
+                />
+                <View style={styles.twoColumns}>
+                  <TextInput
+                    onChangeText={setVisitorType}
+                    placeholder="Tipo"
+                    style={[styles.input, styles.columnInput]}
+                    value={visitorType}
+                  />
+                  <TextInput
+                    onChangeText={setVisitReason}
+                    placeholder="Motivo"
+                    style={[styles.input, styles.columnInput]}
+                    value={visitReason}
+                  />
+                </View>
+                <ActionButton
+                  disabled={loading}
+                  label="Registrar visitante pendiente"
+                  onPress={() =>
+                    confirmAction(
+                      'Registrar visitante',
+                      `Crear solicitud pendiente para ${visitorName || 'este visitante'}?`,
+                      () => void registerVisitor(),
+                    )
+                  }
+                  tone="warning"
+                />
+              </>
+            ) : null}
+
+            {activePorterView === 'messages' ? (
+              <>
             <View style={styles.divider} />
 
             <View style={styles.chatShell}>
@@ -2171,6 +2368,8 @@ export default function App() {
                 tone="secondary"
               />
             </View>
+              </>
+            ) : null}
           </View>
         ) : null}
         </ScrollView>
@@ -2181,16 +2380,23 @@ export default function App() {
                 if (isAdminSession) {
                   setActiveAdminTab('home');
                 }
+                if (isPorterSession) {
+                  setActivePorterView('home');
+                }
               }}
               style={
-                !isAdminSession || activeAdminTab === 'home'
+                (isAdminSession && activeAdminTab === 'home') ||
+                (isPorterSession && activePorterView === 'home') ||
+                (!isAdminSession && !isPorterSession)
                   ? styles.bottomNavItemActive
                   : styles.bottomNavItem
               }
             >
               <Ionicons
                 color={
-                  !isAdminSession || activeAdminTab === 'home'
+                  (isAdminSession && activeAdminTab === 'home') ||
+                  (isPorterSession && activePorterView === 'home') ||
+                  (!isAdminSession && !isPorterSession)
                     ? palette.primary
                     : palette.muted
                 }
@@ -2199,7 +2405,9 @@ export default function App() {
               />
               <Text
                 style={
-                  !isAdminSession || activeAdminTab === 'home'
+                  (isAdminSession && activeAdminTab === 'home') ||
+                  (isPorterSession && activePorterView === 'home') ||
+                  (!isAdminSession && !isPorterSession)
                     ? styles.bottomNavTextActive
                     : styles.bottomNavText
                 }
@@ -2212,16 +2420,24 @@ export default function App() {
                 if (isAdminSession) {
                   setActiveAdminTab('admin');
                 }
+                if (isPorterSession) {
+                  setActivePorterView('search');
+                  if (units.length === 0) {
+                    void searchUnits('');
+                  }
+                }
               }}
               style={
-                isAdminSession && activeAdminTab === 'admin'
+                (isAdminSession && activeAdminTab === 'admin') ||
+                (isPorterSession && activePorterView !== 'home')
                   ? styles.bottomNavItemActive
                   : styles.bottomNavItem
               }
             >
               <Ionicons
                 color={
-                  isAdminSession && activeAdminTab === 'admin'
+                  (isAdminSession && activeAdminTab === 'admin') ||
+                  (isPorterSession && activePorterView !== 'home')
                     ? palette.primary
                     : palette.muted
                 }
@@ -2236,7 +2452,8 @@ export default function App() {
               />
               <Text
                 style={
-                  isAdminSession && activeAdminTab === 'admin'
+                  (isAdminSession && activeAdminTab === 'admin') ||
+                  (isPorterSession && activePorterView !== 'home')
                     ? styles.bottomNavTextActive
                     : styles.bottomNavText
                 }

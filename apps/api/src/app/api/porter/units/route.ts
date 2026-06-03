@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         )
       group by u.id, p.name
       order by u.tower::int, u.unit_number
-      limit 30
+      limit 350
     `,
     ["Conjunto Residencial Arcadas de San Isidro", query, session.propertyId],
   );
