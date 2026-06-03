@@ -346,8 +346,9 @@ function AccordionToggle({
 }
 
 export default function App() {
-  const [username, setUsername] = useState('porteria');
-  const [password, setPassword] = useState('Porteria123*');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [session, setSession] = useState<UserSession | null>(null);
   const [query, setQuery] = useState('31 1A');
   const [units, setUnits] = useState<UnitSearchResult[]>([]);
@@ -436,6 +437,11 @@ export default function App() {
   }
 
   async function login() {
+    if (!username.trim() || !password.trim()) {
+      showValidationError('Escribe usuario y contrasena para ingresar.');
+      return;
+    }
+
     setLoading(true);
     setNotice({ tone: 'info', text: 'Validando usuario de porteria...' });
 
@@ -1112,9 +1118,10 @@ export default function App() {
               mode="outlined"
               onChangeText={setUsername}
               activeOutlineColor={palette.primary}
-              label="Usuario"
+              label="Correo"
               outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
+              placeholder="correo@ejemplo.com"
               style={styles.loginInput}
               value={username}
             />
@@ -1128,10 +1135,27 @@ export default function App() {
               label="Contrasena"
               outlineColor={palette.line}
               outlineStyle={styles.loginInputOutline}
+              placeholder="Contrasena"
               secureTextEntry
               style={styles.loginInput}
               value={password}
             />
+            <Pressable
+              onPress={() => setRememberMe((current) => !current)}
+              style={styles.rememberRow}
+            >
+              <View
+                style={[
+                  styles.rememberBox,
+                  rememberMe ? styles.rememberBoxActive : null,
+                ]}
+              >
+                {rememberMe ? (
+                  <Ionicons color="#ffffff" name="checkmark" size={14} />
+                ) : null}
+              </View>
+              <Text style={styles.rememberText}>Recordarme</Text>
+            </Pressable>
             <PaperButton
               disabled={loading}
               mode="contained"
@@ -1142,15 +1166,38 @@ export default function App() {
             >
               Ingresar
             </PaperButton>
+            <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
             {loading ? <ActivityIndicator color={palette.primary} /> : null}
             {notice.tone === 'error' ? (
               <View style={[styles.notice, styles.errorNotice]}>
                 <Text style={styles.noticeText}>{notice.text}</Text>
               </View>
             ) : null}
-            <Text style={styles.loginHint}>
-              Acceso privado para porteria, administracion y residentes.
-            </Text>
+            <View style={styles.loginIllustration}>
+              <View style={styles.buildingSmall}>
+                <View style={styles.windowGrid}>
+                  <View style={styles.windowDot} />
+                  <View style={styles.windowDot} />
+                  <View style={styles.windowDot} />
+                  <View style={styles.windowDot} />
+                </View>
+              </View>
+              <View style={styles.buildingGate}>
+                <Ionicons color="#b7cff0" name="business-outline" size={42} />
+              </View>
+              <View style={styles.buildingTall}>
+                <View style={styles.windowGridTall}>
+                  <View style={styles.windowLine} />
+                  <View style={styles.windowLine} />
+                  <View style={styles.windowLine} />
+                  <View style={styles.windowLine} />
+                </View>
+              </View>
+            </View>
+            <View style={styles.secureConnection}>
+              <Ionicons color={palette.green} name="shield-checkmark" size={18} />
+              <Text style={styles.secureConnectionText}>Conexión segura</Text>
+            </View>
           </View>
         ) : (
           <View style={styles.sessionBar}>
@@ -1957,12 +2004,125 @@ const styles = StyleSheet.create({
     marginTop: 4,
     minHeight: 48,
   },
+  rememberRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  rememberBox: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 20,
+    justifyContent: 'center',
+    width: 20,
+  },
+  rememberBoxActive: {
+    backgroundColor: palette.green,
+    borderColor: palette.green,
+  },
+  rememberText: {
+    color: palette.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  forgotPassword: {
+    color: palette.primary,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+    textAlign: 'center',
+  },
   loginHint: {
     color: palette.muted,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
     textAlign: 'center',
+  },
+  loginIllustration: {
+    alignItems: 'flex-end',
+    alignSelf: 'center',
+    borderBottomColor: '#cfe1f7',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    height: 130,
+    justifyContent: 'center',
+    marginTop: 4,
+    width: '86%',
+  },
+  buildingSmall: {
+    borderColor: '#cfe1f7',
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    marginRight: -8,
+    width: 54,
+  },
+  buildingGate: {
+    alignItems: 'center',
+    borderColor: '#cfe1f7',
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 72,
+    justifyContent: 'center',
+    marginBottom: -1,
+    width: 78,
+    zIndex: 1,
+  },
+  buildingTall: {
+    borderColor: '#cfe1f7',
+    borderRadius: 5,
+    borderWidth: 1,
+    height: 104,
+    justifyContent: 'center',
+    marginLeft: -8,
+    width: 64,
+  },
+  windowGrid: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    width: 25,
+  },
+  windowDot: {
+    backgroundColor: '#cfe1f7',
+    borderRadius: 2,
+    height: 4,
+    width: 4,
+  },
+  windowGridTall: {
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  windowLine: {
+    backgroundColor: '#cfe1f7',
+    borderRadius: 3,
+    height: 5,
+    width: 24,
+  },
+  secureConnection: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#e8f7ef',
+    borderColor: '#b9e7cf',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  secureConnectionText: {
+    color: palette.green,
+    fontSize: 13,
+    fontWeight: '900',
   },
   iconBadge: {
     alignItems: 'center',
