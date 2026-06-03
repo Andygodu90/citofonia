@@ -47,7 +47,7 @@ const appFonts = {
 };
 
 const palette = {
-  bg: '#f4f8fc',
+  bg: '#ffffff',
   surface: '#ffffff',
   surfaceMuted: '#f6faff',
   ink: '#08214a',
@@ -775,15 +775,8 @@ export default function App() {
       });
       setActiveAdminTab('home');
       setNotice({
-        tone: 'success',
-        text:
-          data.user.role === 'resident'
-            ? 'Sesion de residente iniciada.'
-            : data.user.role === 'porter'
-              ? 'Sesion de porteria iniciada. Ya puedes buscar unidades.'
-              : data.user.role === 'admin'
-                ? 'Sesion de administracion iniciada.'
-                : 'Sesion de superadmin iniciada.',
+        tone: 'info',
+        text: '',
       });
 
       if (data.user.role === 'resident') {
@@ -1508,7 +1501,7 @@ export default function App() {
           </View>
         ) : null}
 
-        {session ? (
+        {session && notice.text && notice.tone === 'error' ? (
           <View style={[styles.notice, styles[`${notice.tone}Notice`]]}>
             <Text style={styles.noticeText}>{notice.text}</Text>
           </View>
@@ -2539,9 +2532,10 @@ const styles = StyleSheet.create({
   shortcutCard: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderColor: palette.line,
+    borderBottomColor: palette.line,
     borderRadius: 8,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderWidth: 0,
     flexDirection: 'row',
     gap: 12,
     minHeight: 76,
@@ -2605,10 +2599,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   adminVisitorCard: {
-    backgroundColor: '#f6faff',
-    borderColor: palette.line,
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     flex: 1,
     gap: 5,
     minHeight: 104,
@@ -2627,10 +2621,10 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   porterSummaryList: {
-    backgroundColor: '#f6faff',
-    borderColor: palette.line,
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: 8,
     padding: 10,
   },
@@ -2652,18 +2646,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   panel: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: 12,
     marginBottom: 12,
-    padding: 16,
+    padding: 0,
     shadowColor: '#0b3778',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   roleView: {
     gap: 12,
@@ -2694,10 +2688,10 @@ const styles = StyleSheet.create({
   },
   accordionHeader: {
     alignItems: 'center',
-    backgroundColor: '#f6faff',
-    borderColor: palette.line,
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
@@ -2894,16 +2888,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   unitItem: {
-    backgroundColor: '#ffffff',
-    borderColor: palette.line,
+    backgroundColor: 'transparent',
+    borderBottomColor: palette.line,
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderWidth: 0,
     marginTop: 10,
     padding: 14,
   },
   unitItemSelected: {
-    borderColor: palette.primary,
-    backgroundColor: '#eaf4ff',
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
   },
   unitTitle: {
     color: palette.ink,
@@ -2959,17 +2955,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   historyItem: {
-    backgroundColor: '#ffffff',
-    borderColor: palette.line,
+    backgroundColor: 'transparent',
+    borderBottomColor: palette.line,
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderWidth: 0,
     padding: 12,
   },
   pendingItem: {
-    backgroundColor: '#fff8e7',
-    borderColor: '#f6d98a',
+    backgroundColor: 'transparent',
+    borderBottomColor: palette.line,
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderWidth: 0,
     padding: 12,
   },
   historyType: {
@@ -3052,9 +3052,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   statBox: {
-    backgroundColor: '#f6faff',
-    borderColor: palette.line,
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
     borderRadius: 8,
     flex: 1,
     padding: 12,
@@ -3111,10 +3111,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   chatShell: {
-    backgroundColor: '#f4f8fc',
-    borderColor: palette.line,
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     overflow: 'hidden',
   },
   chatHeader: {
@@ -3165,11 +3165,11 @@ const styles = StyleSheet.create({
   chatTimeline: {
     gap: 8,
     minHeight: 220,
-    padding: 12,
+    paddingVertical: 12,
   },
   emptyChat: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 170,
