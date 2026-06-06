@@ -732,7 +732,9 @@ export function AdminDashboard({
                   ].map(([label, value]) => (
                     <div className="rounded-xl border border-[#DCE8F5] bg-white p-6" key={label}>
                       <p className="text-sm font-bold text-[#5B6F8A]">{label}</p>
-                      <p className="mt-4 text-5xl font-black">{value}</p>
+                      <p className="mt-4 text-5xl font-black">
+                        <AnimatedCounter value={Number(value)} />
+                      </p>
                     </div>
                   ))}
                 </section>
@@ -1144,6 +1146,43 @@ function UnitDetailItem({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-base font-black">{value}</p>
     </div>
   );
+}
+
+function AnimatedCounter({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplayValue(safeValue);
+      return;
+    }
+
+    let animationFrame = 0;
+    const duration = 650;
+    const startedAt = performance.now();
+
+    function tick(now: number) {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const easedProgress = 1 - (1 - progress) ** 3;
+
+      setDisplayValue(Math.round(safeValue * easedProgress));
+
+      if (progress < 1) {
+        animationFrame = window.requestAnimationFrame(tick);
+      }
+    }
+
+    setDisplayValue(0);
+    animationFrame = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [value]);
+
+  return <>{displayValue.toLocaleString("es-CO")}</>;
 }
 
 function formatShortTime(value: string | null) {
