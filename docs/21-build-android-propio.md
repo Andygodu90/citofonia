@@ -11,6 +11,8 @@ Objetivo: dejar la app movil lista para probar fuera de Expo Go y preparar funci
 - `apps/mobile/app.json` ya declara el permiso Android `CALL_PHONE`.
 - La app ya abre llamadas del sistema Android con `tel:` para usar la SIM.
 - WhatsApp se envia por backend usando WhatsApp Cloud API cuando las credenciales estan configuradas.
+- Las builds Android de prueba estable y produccion usan por defecto `https://citofonia.julissasantis.com` como API publica.
+- La vista web local de la app sigue usando el servidor local de tu equipo para revisar cambios en navegador.
 
 ## Comandos principales
 
@@ -51,6 +53,12 @@ Genera un Android App Bundle (`.aab`) para Play Store.
 7. Iniciar sesion como `porter` o `admin`.
 8. Probar busqueda de unidades, WhatsApp y llamadas.
 9. Para Play Store, ejecutar `npm.cmd run build:android:production` y subir el `.aab` a Google Play Console.
+
+## URLs de revision
+
+- App movil en navegador local: `http://localhost:8082`.
+- App movil desde otro equipo en la misma red: `http://192.168.80.27:8082` o `http://192.168.80.12:8082`.
+- API publica para APK y Play Store: `https://citofonia.julissasantis.com`.
 
 ## Pruebas obligatorias antes de Play Store
 

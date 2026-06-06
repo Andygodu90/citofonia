@@ -34,14 +34,28 @@ import {
   TextInput as PaperTextInput,
 } from 'react-native-paper';
 
+const PRODUCTION_API_URL = 'https://citofonia.julissasantis.com';
+
 function getDefaultApiUrl() {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const hostname = window.location.hostname || 'localhost';
 
-    return `http://${hostname}:3000`;
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.')
+    ) {
+      return `http://${hostname}:3000`;
+    }
+
+    return window.location.origin;
   }
 
-  return 'http://192.168.80.27:3000';
+  if (__DEV__) {
+    return 'http://192.168.80.27:3000';
+  }
+
+  return PRODUCTION_API_URL;
 }
 
 const DEFAULT_API_URL = getDefaultApiUrl();
