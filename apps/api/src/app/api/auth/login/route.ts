@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
   if (!username || !password) {
     return Response.json(
-      { error: "Usuario y contrasena son obligatorios" },
+      { error: "Usuario y contraseña son obligatorios" },
       { status: 400 },
     );
   }
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     return Response.json(
-      { error: "Credenciales invalidas" },
+      { error: "Credenciales inválidas" },
       { status: 401 },
     );
   }

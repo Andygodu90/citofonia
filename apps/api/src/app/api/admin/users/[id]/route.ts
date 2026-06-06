@@ -36,12 +36,12 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   if (username !== undefined && username.length === 0) {
-    return Response.json({ error: "El usuario no puede quedar vacio" }, { status: 400 });
+    return Response.json({ error: "El usuario no puede quedar vacío" }, { status: 400 });
   }
 
   if (password && password.length < 8) {
     return Response.json(
-      { error: "La nueva contrasena debe tener minimo 8 caracteres" },
+      { error: "La nueva contraseña debe tener mínimo 8 caracteres" },
       { status: 400 },
     );
   }

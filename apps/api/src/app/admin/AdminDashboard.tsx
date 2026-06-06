@@ -156,6 +156,7 @@ export function AdminDashboard({
   const [residents, setResidents] = useState<Resident[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [unitQuery, setUnitQuery] = useState("");
+  const [showBlockedUnitsOnly, setShowBlockedUnitsOnly] = useState(false);
   const [residentQuery, setResidentQuery] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState("");
   const [detailUnitId, setDetailUnitId] = useState("");
@@ -206,6 +207,9 @@ export function AdminDashboard({
     () => users.find((user) => user.id === userModalId) ?? null,
     [userModalId, users],
   );
+  const visibleUnits = showBlockedUnitsOnly
+    ? units.filter((unit) => unit.is_access_blocked)
+    : units;
 
   useEffect(() => {
     if (apiToken && session) {
@@ -288,6 +292,7 @@ export function AdminDashboard({
     setSection(nextSection);
     router.push(sectionPaths[nextSection]);
     setUnitQuery("");
+    setShowBlockedUnitsOnly(false);
     setResidentQuery("");
     setResidentModalOpen(false);
     setUserModalId("");
@@ -675,6 +680,18 @@ export function AdminDashboard({
     );
   }
 
+  const inlineProfileSections: Section[] = ["units", "residents", "users", "messages"];
+  const shouldUseInlineProfile = inlineProfileSections.includes(section);
+  const profileMenu = (
+    <UserProfileMenu
+      isOpen={profileMenuOpen}
+      onClose={() => setProfileMenuOpen(false)}
+      onLogout={logout}
+      onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
+      user={session}
+    />
+  );
+
   return (
     <>
     <main className="min-h-screen bg-[#F7FAFD] text-[#123047]">
@@ -703,7 +720,7 @@ export function AdminDashboard({
         </aside>
 
         <section className="flex min-w-0 flex-col">
-          {section !== "messages" ? (
+          {!shouldUseInlineProfile ? (
             <header className="flex flex-col gap-4 border-b border-[#DCE8F5] bg-white px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <p className="text-xs font-black uppercase text-[#1877F2]">Panel administrativo</p>
@@ -712,13 +729,7 @@ export function AdminDashboard({
                   Gestiona roles, residentes, bloqueos, mensajeria y reportes.
                 </p>
               </div>
-              <UserProfileMenu
-                isOpen={profileMenuOpen}
-                onClose={() => setProfileMenuOpen(false)}
-                onLogout={logout}
-                onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
-                user={session}
-              />
+              {profileMenu}
             </header>
           ) : null}
 
@@ -769,6 +780,7 @@ export function AdminDashboard({
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                 <ModuleHeader
                   description="Filtra unidades, actualiza placas y aplica bloqueos operativos."
+                  rightSlot={profileMenu}
                   title="Unidades y bloqueos"
                 />
                 <SearchBar
@@ -777,8 +789,26 @@ export function AdminDashboard({
                   value={unitQuery}
                   onChange={setUnitQuery}
                 />
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    className={`rounded-lg px-4 py-2 text-sm font-black transition ${
+                      showBlockedUnitsOnly
+                        ? "bg-red-600 text-white"
+                        : "bg-[#EAF4FF] text-[#1877F2] hover:bg-[#1877F2] hover:text-white"
+                    }`}
+                    onClick={() => setShowBlockedUnitsOnly((current) => !current)}
+                    type="button"
+                  >
+                    {showBlockedUnitsOnly ? "Mostrando bloqueadas" : "Mostrar solo bloqueadas"}
+                  </button>
+                  <p className="text-sm font-bold text-[#5B6F8A]">
+                    {showBlockedUnitsOnly
+                      ? `${visibleUnits.length} unidad(es) bloqueada(s) visibles`
+                      : `${units.length} unidad(es) cargada(s)`}
+                  </p>
+                </div>
                 <div className="mt-4 grid gap-3 xl:grid-cols-2">
-                  {units.map((unit) => (
+                  {visibleUnits.map((unit) => (
                     <div className="rounded-xl border border-[#DCE8F5] p-4" key={unit.id}>
                       <div className="flex items-start justify-between gap-3">
                         <button className="text-left" onClick={() => setSelectedUnitId(unit.id)}>
@@ -847,6 +877,11 @@ export function AdminDashboard({
                       </div>
                     </div>
                   ))}
+                  {visibleUnits.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-[#DCE8F5] p-6 text-sm font-bold text-[#5B6F8A]">
+                      No hay unidades para mostrar con este filtro.
+                    </div>
+                  ) : null}
                 </div>
               </section>
             ) : null}
@@ -855,7 +890,13 @@ export function AdminDashboard({
               <section className="grid gap-5">
                 <div className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <ModuleHeader description="Edita estado y privacidad visible para porteria." title="Residentes" />
+                    <ModuleHeader
+                      description="Edita estado y privacidad visible para porteria."
+                      rightSlot={profileMenu}
+                      title="Residentes"
+                    />
+                  </div>
+                  <div className="mb-4 flex justify-end">
                     <button
                       className="primaryButton"
                       onClick={() => openResidentModal(selectedUnitId)}
@@ -893,10 +934,21 @@ export function AdminDashboard({
 
             {section === "users" ? (
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
-                <ModuleHeader description="Crea, cambia roles y activa o desactiva usuarios." title="Roles y usuarios" />
+                <ModuleHeader
+                  description="Crea, cambia roles y activa o desactiva usuarios."
+                  rightSlot={profileMenu}
+                  title="Roles y usuarios"
+                />
                 <div className="grid gap-3 md:grid-cols-4">
                   <input className="input" onChange={(event) => setNewUsername(event.target.value)} placeholder="Usuario" value={newUsername} />
-                  <input className="input" onChange={(event) => setNewPassword(event.target.value)} placeholder="Contrasena" value={newPassword} />
+                  <input
+                    autoComplete="new-password"
+                    className="input"
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="Contraseña"
+                    type="password"
+                    value={newPassword}
+                  />
                   <select className="input" onChange={(event) => setNewRole(event.target.value)} value={newRole}>
                     <option value="porter">Porteria</option>
                     <option value="admin">Admin</option>
@@ -942,15 +994,7 @@ export function AdminDashboard({
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                 <ModuleHeader
                   description="Envia mensajes por WhatsApp y registra notificaciones push."
-                  rightSlot={
-                    <UserProfileMenu
-                      isOpen={profileMenuOpen}
-                      onClose={() => setProfileMenuOpen(false)}
-                      onLogout={logout}
-                      onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
-                      user={session}
-                    />
-                  }
+                  rightSlot={profileMenu}
                   title="Mensajeria"
                 />
                 <ChatPanel
@@ -1324,7 +1368,7 @@ function UserEditModal({
             </p>
             <h3 className="mt-1 text-3xl font-black">{user.username}</h3>
             <p className="mt-1 text-sm font-medium text-[#5B6F8A]">
-              Cambia usuario, rol, contrasena o estado.
+              Cambia usuario, rol, contraseña o estado.
             </p>
           </div>
           <button
@@ -1339,7 +1383,14 @@ function UserEditModal({
 
         <div className="mt-6 grid gap-3">
           <input className="input" onChange={(event) => setEditUsername(event.target.value)} placeholder="Usuario" value={editUsername} />
-          <input className="input" onChange={(event) => setEditPassword(event.target.value)} placeholder="Nueva contrasena opcional" type="password" value={editPassword} />
+          <input
+            autoComplete="new-password"
+            className="input"
+            onChange={(event) => setEditPassword(event.target.value)}
+            placeholder="Nueva contraseña opcional"
+            type="password"
+            value={editPassword}
+          />
           <select className="input" onChange={(event) => setEditRole(event.target.value)} value={editRole}>
             <option value="porter">Porteria</option>
             <option value="admin">Admin</option>

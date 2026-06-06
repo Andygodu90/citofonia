@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   if (!username || password.length < 8) {
     return Response.json(
-      { error: "Usuario y contrasena de minimo 8 caracteres son obligatorios" },
+      { error: "Usuario y contraseña de mínimo 8 caracteres son obligatorios" },
       { status: 400 },
     );
   }
