@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 type Summary = {
   units: number;
@@ -189,7 +189,6 @@ export function AdminDashboard({
   const [notice, setNotice] = useState("Inicia sesion para cargar el panel.");
   const [loading, setLoading] = useState(false);
   const [blockingUnitId, setBlockingUnitId] = useState("");
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const detailUnit = useMemo(
     () => units.find((unit) => unit.id === detailUnitId) ?? null,
@@ -277,7 +276,6 @@ export function AdminDashboard({
     window.sessionStorage.removeItem(adminSessionKey);
     setApiToken("");
     setSession(null);
-    setProfileMenuOpen(false);
     setSummary(null);
     setUnits([]);
     setResidents([]);
@@ -682,16 +680,6 @@ export function AdminDashboard({
 
   const inlineProfileSections: Section[] = ["units", "residents", "users", "messages"];
   const shouldUseInlineProfile = inlineProfileSections.includes(section);
-  const profileMenu = (
-    <UserProfileMenu
-      isOpen={profileMenuOpen}
-      onClose={() => setProfileMenuOpen(false)}
-      onLogout={logout}
-      onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
-      user={session}
-    />
-  );
-
   return (
     <>
     <main className="min-h-screen bg-[#F7FAFD] text-[#123047]">
@@ -702,6 +690,7 @@ export function AdminDashboard({
             <h1 className="mt-1 text-2xl font-black">Arcadas</h1>
             <p className="mt-1 text-sm text-[#5B6F8A]">Administracion web</p>
           </div>
+          <SidebarSessionCard onLogout={logout} user={session} />
           <nav className="mt-6 grid gap-2">
             {navItems.map((item) => (
               <button
@@ -729,7 +718,6 @@ export function AdminDashboard({
                   Gestiona roles, residentes, bloqueos, mensajeria y reportes.
                 </p>
               </div>
-              {profileMenu}
             </header>
           ) : null}
 
@@ -780,7 +768,6 @@ export function AdminDashboard({
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                 <ModuleHeader
                   description="Filtra unidades, actualiza placas y aplica bloqueos operativos."
-                  rightSlot={profileMenu}
                   title="Unidades y bloqueos"
                 />
                 <SearchBar
@@ -892,7 +879,6 @@ export function AdminDashboard({
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <ModuleHeader
                       description="Edita estado y privacidad visible para porteria."
-                      rightSlot={profileMenu}
                       title="Residentes"
                     />
                   </div>
@@ -936,7 +922,6 @@ export function AdminDashboard({
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                 <ModuleHeader
                   description="Crea, cambia roles y activa o desactiva usuarios."
-                  rightSlot={profileMenu}
                   title="Roles y usuarios"
                 />
                 <div className="grid gap-3 md:grid-cols-4">
@@ -994,7 +979,6 @@ export function AdminDashboard({
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
                 <ModuleHeader
                   description="Envia mensajes por WhatsApp y registra notificaciones push."
-                  rightSlot={profileMenu}
                   title="Mensajeria"
                 />
                 <ChatPanel
@@ -1641,20 +1625,13 @@ function ChatPanel({
   );
 }
 
-function UserProfileMenu({
-  isOpen,
-  onClose,
+function SidebarSessionCard({
   onLogout,
-  onToggle,
   user,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
   onLogout: () => void;
-  onToggle: () => void;
   user: AuthUser;
 }) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const initials = user.username
     .split(/[.\s_-]+/)
     .filter(Boolean)
@@ -1663,69 +1640,28 @@ function UserProfileMenu({
     .join("") || "A";
   const roleLabel = user.role === "superadmin" ? "Superadmin" : "Admin";
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function handleOutsideClick(event: MouseEvent) {
-      const target = event.target;
-
-      if (target instanceof Node && menuRef.current && !menuRef.current.contains(target)) {
-        onClose();
-      }
-    }
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen, onClose]);
-
   return (
-    <div className="relative" ref={menuRef}>
+    <section className="mt-3 rounded-xl border border-[#DCE8F5] bg-white p-3 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-wide text-[#1877F2]">
+        Sesion activa
+      </p>
+      <div className="mt-2 flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] text-sm font-black text-white">
+          {initials}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-[#123047]">{user.username}</p>
+          <p className="text-xs font-bold text-[#5B6F8A]">{roleLabel}</p>
+        </div>
+      </div>
       <button
-        aria-expanded={isOpen}
-        className="flex min-w-56 items-center justify-between gap-3 rounded-full border border-[#DCE8F5] bg-white px-3 py-2 shadow-sm transition hover:border-[#1877F2] hover:bg-[#EAF4FF]"
-        onClick={onToggle}
+        className="mt-3 w-full rounded-lg bg-red-50 px-3 py-2 text-left text-xs font-black text-red-700 transition hover:bg-red-600 hover:text-white"
+        onClick={onLogout}
         type="button"
       >
-        <span className="flex items-center gap-3 text-left">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] text-sm font-black text-white">
-            {initials}
-          </span>
-          <span>
-            <span className="block text-sm font-black text-[#123047]">
-              {user.username}
-            </span>
-            <span className="block text-xs font-bold text-[#5B6F8A]">
-              {roleLabel}
-            </span>
-          </span>
-        </span>
-        <span className="text-xs font-black text-[#1877F2]">{isOpen ? "^" : "v"}</span>
+        Cerrar sesion
       </button>
-
-      {isOpen ? (
-        <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-[#DCE8F5] bg-white p-2 shadow-xl">
-          <div className="border-b border-[#DCE8F5] px-3 py-3">
-            <p className="text-xs font-black uppercase text-[#1877F2]">
-              Sesion activa
-            </p>
-            <p className="mt-1 text-sm font-black text-[#123047]">{user.username}</p>
-            <p className="text-xs font-bold text-[#5B6F8A]">{roleLabel}</p>
-          </div>
-          <button
-            className="mt-2 w-full rounded-lg px-3 py-3 text-left text-sm font-black text-red-700 hover:bg-red-50"
-            onClick={onLogout}
-            type="button"
-          >
-            Cerrar sesion
-          </button>
-        </div>
-      ) : null}
-    </div>
+    </section>
   );
 }
 
