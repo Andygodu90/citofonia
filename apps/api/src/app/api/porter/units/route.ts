@@ -4,6 +4,17 @@ import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+type UnitSearchRow = {
+  id: string;
+  property_name: string;
+  block: string;
+  unit_number: string;
+  display_label: string;
+  is_access_blocked: boolean;
+  access_block_reason: string | null;
+  active_residents: number;
+};
+
 export async function GET(request: NextRequest) {
   const session = await requirePorterSession(request);
 
@@ -13,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const query = request.nextUrl.searchParams.get("query")?.trim() ?? "";
 
-  const result = await db.query(
+  const result = await db.query<UnitSearchRow>(
     `
       select
         u.id,
@@ -21,6 +32,8 @@ export async function GET(request: NextRequest) {
         u.tower as block,
         u.unit_number,
         u.display_label,
+        u.is_access_blocked,
+        u.access_block_reason,
         count(r.id)::int as active_residents
       from residential_units u
       join properties p on p.id = u.property_id
@@ -52,6 +65,8 @@ export async function GET(request: NextRequest) {
       unitNumber: row.unit_number,
       displayLabel: row.display_label,
       activeResidents: row.active_residents,
+      isAccessBlocked: row.is_access_blocked,
+      accessBlockReason: row.access_block_reason,
       privacyLabel:
         row.active_residents === 1
           ? "1 residente activo - datos protegidos"

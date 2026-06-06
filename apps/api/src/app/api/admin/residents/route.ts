@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query")?.trim() ?? "";
+  const queryDigits = query.replace(/\D/g, "");
 
   const result = await db.query(
     `
@@ -22,7 +23,12 @@ export async function GET(request: Request) {
         r.email,
         r.resident_type,
         r.is_active,
+        r.show_name_to_porter,
+        r.show_phone_to_porter,
+        u.id as unit_id,
         u.display_label as unit_label,
+        u.car_plate,
+        u.motorcycle_plate,
         coalesce(min(c.phone_e164), '') as phone
       from residents r
       join residential_units u on u.id = r.unit_id
@@ -33,13 +39,22 @@ export async function GET(request: Request) {
           $2 = ''
           or r.full_name ilike '%' || $2 || '%'
           or r.document_id ilike '%' || $2 || '%'
+          or r.email ilike '%' || $2 || '%'
+          or r.resident_type ilike '%' || $2 || '%'
           or u.display_label ilike '%' || $2 || '%'
+          or u.tower ilike '%' || $2 || '%'
+          or u.unit_number ilike '%' || $2 || '%'
+          or (u.tower || ' ' || u.unit_number) ilike '%' || $2 || '%'
+          or u.car_plate ilike '%' || $2 || '%'
+          or u.motorcycle_plate ilike '%' || $2 || '%'
+          or c.phone_e164 ilike '%' || $2 || '%'
+          or ($3 <> '' and regexp_replace(c.phone_e164, '\\D', '', 'g') ilike '%' || $3 || '%')
         )
-      group by r.id, u.display_label
+      group by r.id, u.id, u.display_label, u.car_plate, u.motorcycle_plate
       order by u.display_label, r.full_name
       limit 60
     `,
-    [session.propertyId, query],
+    [session.propertyId, query, queryDigits],
   );
 
   return Response.json({ residents: result.rows });
@@ -58,6 +73,8 @@ export async function POST(request: Request) {
     documentId?: string;
     email?: string;
     phone?: string;
+    showNameToPorter?: boolean;
+    showPhoneToPorter?: boolean;
   };
 
   if (!body.unitId || !body.fullName?.trim()) {
@@ -84,8 +101,16 @@ export async function POST(request: Request) {
 
     const resident = await client.query(
       `
-        insert into residents (unit_id, full_name, document_id, email, resident_type)
-        values ($1, $2, $3, $4, 'resident')
+        insert into residents (
+          unit_id,
+          full_name,
+          document_id,
+          email,
+          resident_type,
+          show_name_to_porter,
+          show_phone_to_porter
+        )
+        values ($1, $2, $3, $4, 'resident', $5, $6)
         returning id, full_name
       `,
       [
@@ -93,6 +118,8 @@ export async function POST(request: Request) {
         body.fullName.trim(),
         body.documentId?.trim() || null,
         body.email?.trim() || null,
+        body.showNameToPorter ?? false,
+        body.showPhoneToPorter ?? false,
       ],
     );
 

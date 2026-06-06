@@ -21,6 +21,11 @@ export async function GET(request: Request) {
         u.unit_number,
         u.display_label,
         u.is_active,
+        u.is_access_blocked,
+        u.access_block_reason,
+        u.car_plate,
+        u.motorcycle_plate,
+        u.access_blocked_at,
         count(distinct r.id)::int as residents,
         count(distinct c.id)::int as contacts
       from residential_units u

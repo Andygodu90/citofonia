@@ -1,4 +1,4 @@
-import { auditEvent, requireAdminSession } from "@/lib/auth";
+import { auditEvent, hashPassword, requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -19,11 +19,31 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     isActive?: boolean;
+    password?: string;
     role?: string;
+    username?: string;
   };
+  const username = body.username?.trim().toLowerCase();
+  const password = body.password ?? "";
 
-  if (typeof body.isActive !== "boolean" && body.role === undefined) {
+  if (
+    typeof body.isActive !== "boolean" &&
+    body.role === undefined &&
+    username === undefined &&
+    password === ""
+  ) {
     return Response.json({ error: "No hay cambios para aplicar" }, { status: 400 });
+  }
+
+  if (username !== undefined && username.length === 0) {
+    return Response.json({ error: "El usuario no puede quedar vacio" }, { status: 400 });
+  }
+
+  if (password && password.length < 8) {
+    return Response.json(
+      { error: "La nueva contrasena debe tener minimo 8 caracteres" },
+      { status: 400 },
+    );
   }
 
   if (id === session.userId && body.isActive === false) {
@@ -33,7 +53,11 @@ export async function PATCH(request: Request, { params }: Params) {
     );
   }
 
-  const role = body.role === "admin" || body.role === "porter" ? body.role : null;
+  const allowedRoles =
+    session.role === "superadmin"
+      ? ["superadmin", "admin", "porter"]
+      : ["admin", "porter"];
+  const role = body.role && allowedRoles.includes(body.role) ? body.role : null;
 
   const result = await db.query(
     `
@@ -41,11 +65,20 @@ export async function PATCH(request: Request, { params }: Params) {
       set
         is_active = coalesce($1, is_active),
         role = coalesce($2, role),
+        username = coalesce($5, username),
+        password_hash = coalesce($6, password_hash),
         updated_at = now()
       where id = $3 and ($4::uuid is null or property_id = $4::uuid)
       returning id, username, role, is_active
     `,
-    [body.isActive ?? null, role, id, session.propertyId],
+    [
+      body.isActive ?? null,
+      role,
+      id,
+      session.propertyId,
+      username ?? null,
+      password ? hashPassword(password) : null,
+    ],
   );
 
   if ((result.rowCount ?? 0) === 0) {
@@ -66,6 +99,8 @@ export async function PATCH(request: Request, { params }: Params) {
     metadata: {
       isActive: body.isActive,
       role,
+      username,
+      changedPassword: Boolean(password),
     },
   });
 

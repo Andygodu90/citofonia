@@ -17,10 +17,24 @@ create table if not exists residential_units (
   unit_number text not null,
   display_label text not null,
   is_active boolean not null default true,
+  is_access_blocked boolean not null default false,
+  access_block_reason text,
+  car_plate text,
+  motorcycle_plate text,
+  access_blocked_at timestamptz,
+  access_unblocked_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (property_id, tower, unit_number)
 );
+
+alter table residential_units
+  add column if not exists is_access_blocked boolean not null default false,
+  add column if not exists access_block_reason text,
+  add column if not exists car_plate text,
+  add column if not exists motorcycle_plate text,
+  add column if not exists access_blocked_at timestamptz,
+  add column if not exists access_unblocked_at timestamptz;
 
 create table if not exists residents (
   id uuid primary key default gen_random_uuid(),
@@ -30,9 +44,15 @@ create table if not exists residents (
   email text,
   resident_type text not null default 'owner',
   is_active boolean not null default true,
+  show_name_to_porter boolean not null default false,
+  show_phone_to_porter boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table residents
+  add column if not exists show_name_to_porter boolean not null default false,
+  add column if not exists show_phone_to_porter boolean not null default false;
 
 create table if not exists resident_contacts (
   id uuid primary key default gen_random_uuid(),
@@ -63,6 +83,10 @@ create table if not exists app_users (
 
 alter table app_users
   add column if not exists resident_id uuid references residents(id);
+
+alter table residential_units
+  add column if not exists access_blocked_by uuid references app_users(id),
+  add column if not exists access_unblocked_by uuid references app_users(id);
 
 create table if not exists visitors (
   id uuid primary key default gen_random_uuid(),
@@ -195,6 +219,31 @@ create table if not exists audit_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists device_push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid references properties(id),
+  user_id uuid not null references app_users(id),
+  role text not null,
+  expo_push_token text not null,
+  platform text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, expo_push_token)
+);
+
+create table if not exists notification_events (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid references properties(id),
+  target_role text,
+  target_user_id uuid references app_users(id),
+  title text not null,
+  body text not null,
+  data jsonb,
+  delivery_status text not null default 'created',
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_units_property on residential_units(property_id);
 create index if not exists idx_residents_unit on residents(unit_id);
 create index if not exists idx_contacts_resident on resident_contacts(resident_id);
@@ -203,3 +252,6 @@ create index if not exists idx_access_events_property_time on access_events(prop
 create index if not exists idx_call_logs_property_time on call_logs(property_id, started_at desc);
 create index if not exists idx_whatsapp_messages_thread_time on whatsapp_messages(thread_id, sent_at asc);
 create index if not exists idx_audit_events_property_time on audit_events(property_id, created_at desc);
+create index if not exists idx_units_property_blocked on residential_units(property_id, is_access_blocked);
+create index if not exists idx_push_tokens_property_role on device_push_tokens(property_id, role, is_active);
+create index if not exists idx_notification_events_property_time on notification_events(property_id, created_at desc);

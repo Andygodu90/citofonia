@@ -1,5 +1,7 @@
 import { requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import PDFDocument from "pdfkit";
+import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 
@@ -17,7 +19,7 @@ function toDateFilter(value: string | null, fallback: string) {
   return value?.trim() || fallback;
 }
 
-function escapeCsv(value: string | number | null) {
+function escapeCsv(value: string | number | boolean | null) {
   const raw = value === null ? "" : String(value);
 
   if (/[",\n\r]/.test(raw)) {
@@ -27,29 +29,61 @@ function escapeCsv(value: string | number | null) {
   return raw;
 }
 
-function toCsv(rows: Array<Record<string, string | number | null>>) {
-  const headers = [
-    "tipo",
-    "titulo",
-    "unidad",
-    "estado",
-    "usuario",
-    "fecha",
-  ];
+type ExportRow = Record<string, string | number | boolean | null>;
+
+function getHeaders(rows: ExportRow[]) {
+  return rows[0] ? Object.keys(rows[0]) : ["sin_datos"];
+}
+
+function toCsv(rows: ExportRow[]) {
+  const headers = getHeaders(rows);
   const body = rows.map((row) =>
-    [
-      row.tipo,
-      row.titulo,
-      row.unidad,
-      row.estado,
-      row.usuario,
-      row.fecha,
-    ]
+    headers
+      .map((header) => row[header] ?? "")
       .map(escapeCsv)
       .join(","),
   );
 
   return [headers.join(","), ...body].join("\n");
+}
+
+function toXlsx(rows: ExportRow[]) {
+  const worksheet = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [{ sin_datos: "" }]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+
+  return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer;
+}
+
+async function toPdf(title: string, rows: ExportRow[]) {
+  const doc = new PDFDocument({ margin: 36, size: "A4" });
+  const chunks: Buffer[] = [];
+
+  doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+
+  doc.fontSize(16).text(title, { align: "left" });
+  doc.moveDown();
+
+  if (rows.length === 0) {
+    doc.fontSize(11).text("No hay datos para este reporte.");
+  } else {
+    const headers = getHeaders(rows).slice(0, 6);
+
+    rows.slice(0, 120).forEach((row, index) => {
+      doc.fontSize(10).text(`${index + 1}. ${headers.map((header) => `${header}: ${row[header] ?? ""}`).join(" | ")}`);
+      doc.moveDown(0.35);
+    });
+  }
+
+  doc.end();
+
+  return new Promise<Buffer>((resolve) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+function toBinaryBody(buffer: Buffer) {
+  return new Uint8Array(buffer);
 }
 
 export async function GET(request: Request) {
@@ -64,7 +98,68 @@ export async function GET(request: Request) {
   const to = toDateFilter(searchParams.get("to"), "2999-12-31");
   const status = searchParams.get("status")?.trim() ?? "";
   const unit = searchParams.get("unit")?.trim() ?? "";
+  const kind = searchParams.get("kind")?.trim() ?? "activity";
   const format = searchParams.get("format")?.trim() ?? "json";
+
+  if (kind === "units" || kind === "blocked_units") {
+    const unitRows = await db.query(
+      `
+        select
+          u.display_label as unidad,
+          u.tower as bloque,
+          u.unit_number as apartamento,
+          u.is_active as activa,
+          u.is_access_blocked as bloqueada,
+          u.access_block_reason as motivo_bloqueo,
+          u.car_plate as placa_carro,
+          u.motorcycle_plate as placa_moto,
+          count(distinct r.id)::int as residentes,
+          coalesce(string_agg(distinct r.full_name, ', '), '') as nombres_residentes
+        from residential_units u
+        left join residents r on r.unit_id = u.id
+        where
+          ($1::uuid is null or u.property_id = $1::uuid)
+          and ($2 = '' or u.display_label ilike '%' || $2 || '%')
+          and ($3 = 'units' or u.is_access_blocked = true)
+        group by u.id
+        order by u.tower::int, u.unit_number
+      `,
+      [session.propertyId, unit, kind],
+    );
+
+    const exportRows = unitRows.rows as ExportRow[];
+    const filename =
+      kind === "blocked_units" ? "unidades-bloqueadas" : "unidades";
+
+    if (format === "csv") {
+      return new Response(toCsv(exportRows), {
+        headers: {
+          "Content-Disposition": `attachment; filename="${filename}.csv"`,
+          "Content-Type": "text/csv; charset=utf-8",
+        },
+      });
+    }
+
+    if (format === "xlsx") {
+      return new Response(toBinaryBody(toXlsx(exportRows)), {
+        headers: {
+          "Content-Disposition": `attachment; filename="${filename}.xlsx"`,
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      });
+    }
+
+    if (format === "pdf") {
+      return new Response(toBinaryBody(await toPdf(filename, exportRows)), {
+        headers: {
+          "Content-Disposition": `attachment; filename="${filename}.pdf"`,
+          "Content-Type": "application/pdf",
+        },
+      });
+    }
+
+    return Response.json({ kind, rows: unitRows.rows });
+  }
 
   const summary = await db.query(
     `
@@ -155,22 +250,38 @@ export async function GET(request: Request) {
     [session.propertyId, from, to, status, unit],
   );
 
-  if (format === "csv") {
-    const csv = toCsv(
-      rows.rows.map((row) => ({
+  const exportRows = rows.rows.map((row) => ({
         tipo: row.report_type,
         titulo: row.title,
         unidad: row.unit_label,
         estado: row.status,
         usuario: row.actor,
         fecha: row.occurred_at,
-      })),
-    );
+      }));
 
-    return new Response(csv, {
+  if (format === "csv") {
+    return new Response(toCsv(exportRows), {
       headers: {
         "Content-Disposition": `attachment; filename="reporte-porteria-${from}-a-${to}.csv"`,
         "Content-Type": "text/csv; charset=utf-8",
+      },
+    });
+  }
+
+  if (format === "xlsx") {
+    return new Response(toBinaryBody(toXlsx(exportRows)), {
+      headers: {
+        "Content-Disposition": `attachment; filename="reporte-porteria-${from}-a-${to}.xlsx"`,
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+    });
+  }
+
+  if (format === "pdf") {
+    return new Response(toBinaryBody(await toPdf("Reporte de porteria", exportRows)), {
+      headers: {
+        "Content-Disposition": `attachment; filename="reporte-porteria-${from}-a-${to}.pdf"`,
+        "Content-Type": "application/pdf",
       },
     });
   }

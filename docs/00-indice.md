@@ -20,6 +20,7 @@
 - [Piloto controlado en porteria](16-piloto-controlado-porteria.md)
 - [Mejoras base de produccion](17-mejoras-produccion.md)
 - [Visualizacion web, computador e iPhone](18-visualizacion-web-ios-computador.md)
+- [Web admin aprobada e inicio de app porteria](20-cierre-web-admin-inicio-app-porteria.md)
 
 ## Relacion con OpenSpec
 

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { notifyUsers } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -97,10 +98,11 @@ export async function POST(request: Request) {
       [contact.property_id, contact.unit_id, contact.contact_id],
     );
 
-    await db.query(
+    const messageResult = await db.query(
       `
         insert into whatsapp_messages (thread_id, direction, provider_message_id, body, sent_at)
         values ($1, 'inbound', $2, $3, to_timestamp($4::bigint))
+        returning id
       `,
       [
         threadResult.rows[0].id,
@@ -109,6 +111,19 @@ export async function POST(request: Request) {
         Number(message.timestamp ?? Math.floor(Date.now() / 1000)),
       ],
     );
+
+    await notifyUsers({
+      propertyId: contact.property_id,
+      targetRoles: ["porter", "admin", "superadmin"],
+      title: "Respuesta de residente",
+      body: "Llego un mensaje nuevo por WhatsApp.",
+      data: {
+        type: "whatsapp_inbound",
+        unitId: contact.unit_id,
+        threadId: threadResult.rows[0].id,
+        messageId: messageResult.rows[0].id,
+      },
+    });
 
     saved += 1;
   }

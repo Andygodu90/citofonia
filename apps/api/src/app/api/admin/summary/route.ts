@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         ) as residents,
         (select count(*)::int from app_users au where $1::uuid is null or au.property_id = $1::uuid) as users,
         (select count(*)::int from visitors v where $1::uuid is null or v.property_id = $1::uuid) as visitors,
+        (select count(*)::int from residential_units u where u.is_access_blocked = true and ($1::uuid is null or u.property_id = $1::uuid)) as blocked_units,
         (select count(*)::int from access_authorizations aa join residential_units u on u.id = aa.unit_id where aa.status = 'pending' and ($1::uuid is null or u.property_id = $1::uuid)) as pending,
         (select count(*)::int from access_authorizations aa join residential_units u on u.id = aa.unit_id where aa.status = 'entered' and ($1::uuid is null or u.property_id = $1::uuid)) as inside
     `,

@@ -1,5 +1,5 @@
 import { AdminDashboard } from "./AdminDashboard";
 
 export default function AdminPage() {
-  return <AdminDashboard />;
+  return <AdminDashboard initialSection="dashboard" />;
 }

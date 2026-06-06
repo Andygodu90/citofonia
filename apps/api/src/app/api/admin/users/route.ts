@@ -39,7 +39,12 @@ export async function POST(request: Request) {
 
   const username = body.username?.trim().toLowerCase();
   const password = body.password ?? "";
-  const role = body.role === "admin" ? "admin" : "porter";
+  const requestedRole = body.role?.trim() ?? "porter";
+  const allowedRoles =
+    session.role === "superadmin"
+      ? ["superadmin", "admin", "porter"]
+      : ["admin", "porter"];
+  const role = allowedRoles.includes(requestedRole) ? requestedRole : "porter";
 
   if (!username || password.length < 8) {
     return Response.json(

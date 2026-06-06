@@ -5,6 +5,7 @@ import {
   sendWhatsAppTemplate,
   sendWhatsAppText,
 } from "@/lib/whatsapp";
+import { notifyUsers } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -119,7 +120,24 @@ export async function POST(request: Request, { params }: Params) {
           body: message,
         });
 
-  const threadResult = await db.query(
+  const existingThread = await db.query<{ id: string }>(
+    `
+      select id
+      from whatsapp_threads
+      where
+        property_id = $1
+        and unit_id = $2
+        and contact_id = $3
+        and status = 'open'
+      order by updated_at desc
+      limit 1
+    `,
+    [contact.property_id, contact.unit_id, contact.contact_id],
+  );
+
+  const threadResult = existingThread.rows[0]
+    ? { rows: existingThread.rows }
+    : await db.query(
     `
       insert into whatsapp_threads (property_id, unit_id, contact_id, status)
       values ($1, $2, $3, 'open')
@@ -152,6 +170,11 @@ export async function POST(request: Request, { params }: Params) {
     ],
   );
 
+  await db.query(
+    "update whatsapp_threads set updated_at = now() where id = $1",
+    [threadResult.rows[0].id],
+  );
+
   await auditEvent({
     propertyId: contact.property_id,
     actorUserId: session.userId,
@@ -164,6 +187,32 @@ export async function POST(request: Request, { params }: Params) {
       mode: providerResult.mode,
       messageType: providerResult.messageType,
       providerStatus: providerResult.status,
+    },
+  });
+
+  const residentUsers = await db.query<{ id: string }>(
+    `
+      select au.id
+      from app_users au
+      join residents r on r.id = au.resident_id
+      where
+        au.is_active = true
+        and r.unit_id = $1
+    `,
+    [contact.unit_id],
+  );
+
+  await notifyUsers({
+    propertyId: contact.property_id,
+    targetRoles: ["porter", "admin", "superadmin"],
+    targetUserIds: residentUsers.rows.map((row) => row.id),
+    title: "Nuevo mensaje",
+    body: `Mensaje registrado para una unidad residencial.`,
+    data: {
+      type: "whatsapp_message",
+      unitId: contact.unit_id,
+      threadId: threadResult.rows[0].id,
+      messageId: messageResult.rows[0].id,
     },
   });
 

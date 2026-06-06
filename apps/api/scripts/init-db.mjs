@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import pg from "pg";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -9,17 +10,23 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const client = new pg.Client({
+neonConfig.webSocketConstructor = ws;
+neonConfig.poolQueryViaFetch = true;
+
+const pool = new Pool({
   connectionString: databaseUrl,
-  ssl: {
-    rejectUnauthorized: true,
-  },
 });
 const schemaPath = join(process.cwd(), "database", "schema.sql");
 const schema = await readFile(schemaPath, "utf8");
+const statements = schema
+  .split(/;\s*(?:\r?\n|$)/)
+  .map((statement) => statement.trim())
+  .filter(Boolean);
 
-await client.connect();
-await client.query(schema);
-await client.end();
+for (const statement of statements) {
+  await pool.query(`${statement};`);
+}
+
+await pool.end();
 
 console.log("Database schema initialized successfully.");
