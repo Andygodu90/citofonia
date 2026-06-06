@@ -11,6 +11,10 @@
     },
     "android": {
       "package": "com.arcadas.citofonia",
+      "versionCode": 1,
+      "permissions": [
+        "CALL_PHONE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

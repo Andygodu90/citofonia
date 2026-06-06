@@ -27,7 +27,8 @@ export async function POST(request: Request, { params }: Params) {
       select
         p.id as property_id,
         u.id as unit_id,
-        c.id as contact_id
+        c.id as contact_id,
+        c.phone_e164
       from residential_units u
       join properties p on p.id = u.property_id
       join residents r on r.unit_id = u.id and r.is_active = true
@@ -83,6 +84,7 @@ export async function POST(request: Request, { params }: Params) {
       id: logResult.rows[0].id,
       status: logResult.rows[0].status,
       startedAt: logResult.rows[0].started_at,
+      phoneE164: contact.phone_e164,
       message: "Intento de llamada registrado. Numero real protegido.",
     },
   });

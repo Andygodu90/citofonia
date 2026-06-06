@@ -1,4 +1,4 @@
-import { StatusBar } from 'expo-status-bar';
+﻿import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Platform,
   Pressable,
   SafeAreaView,
@@ -211,6 +212,12 @@ type CallSession = {
   durationSeconds: number;
 };
 
+type MessageConversationItem = {
+  unit: UnitSearchResult;
+  latest?: HistoryItem;
+  unreadCount: number;
+};
+
 type PackageItem = {
   id: string;
   unitLabel: string;
@@ -244,6 +251,7 @@ type ResidentDashboard = {
 type ActionButtonTone =
   | 'primary'
   | 'secondary'
+  | 'home'
   | 'success'
   | 'warning'
   | 'danger';
@@ -311,12 +319,50 @@ type PorterView =
   | 'blockedUnits'
   | 'alerts';
 
+function normalizeLookup(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isMissedCallItem(item: HistoryItem) {
+  const status = item.status.toLowerCase();
+
+  return (
+    item.direction === 'inbound' ||
+    status.includes('perd') ||
+    status.includes('no_answer') ||
+    status.includes('rechaz') ||
+    status.includes('rejected')
+  );
+}
+
+function sortHistoryByNewest<T extends { occurredAt: string }>(items: T[]) {
+  return [...items].sort(
+    (a, b) =>
+      new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
+}
+
+function normalizePhoneForDial(phone: string) {
+  return phone.replace(/[^\d+]/g, '');
+}
+
 function getActionButtonColors(tone: ActionButtonTone) {
   if (tone === 'secondary') {
     return {
       buttonColor: palette.surface,
       mode: 'outlined' as const,
       textColor: palette.ink,
+    };
+  }
+
+  if (tone === 'home') {
+    return {
+      buttonColor: '#EAF4FF',
+      mode: 'contained' as const,
+      textColor: palette.primary,
     };
   }
 
@@ -701,6 +747,7 @@ type AccordionToggleProps = {
   summary: string;
   isOpen: boolean;
   onPress: () => void;
+  tone?: 'default' | 'warning';
 };
 
 function AccordionToggle({
@@ -708,9 +755,16 @@ function AccordionToggle({
   summary,
   isOpen,
   onPress,
+  tone = 'default',
 }: AccordionToggleProps) {
   return (
-    <Pressable onPress={onPress} style={styles.accordionHeader}>
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.accordionHeader,
+        tone === 'warning' ? styles.accordionHeaderWarning : null,
+      ]}
+    >
       <View style={styles.accordionTitleBlock}>
         <Text style={styles.panelTitle}>{title}</Text>
         <Text style={styles.hint}>{summary}</Text>
@@ -768,6 +822,8 @@ export default function App() {
   const [blockedUnitQuery, setBlockedUnitQuery] = useState('');
   const [readMessageIds, setReadMessageIds] = useState<string[]>([]);
   const [readAlertIds, setReadAlertIds] = useState<string[]>([]);
+  const [readBlockedUnitIds, setReadBlockedUnitIds] = useState<string[]>([]);
+  const [readCallIds, setReadCallIds] = useState<string[]>([]);
   const [lastNotificationKey, setLastNotificationKey] = useState('');
   const [residentDashboard, setResidentDashboard] =
     useState<ResidentDashboard | null>(null);
@@ -795,6 +851,9 @@ export default function App() {
   const [packageType, setPackageType] = useState('');
   const [isActiveVisitorsOpen, setIsActiveVisitorsOpen] = useState(false);
   const [isCallHistoryOpen, setIsCallHistoryOpen] = useState(false);
+  const [isCallLogOpen, setIsCallLogOpen] = useState(false);
+  const [isMissedCallsOpen, setIsMissedCallsOpen] = useState(false);
+  const [isCompletedCallsOpen, setIsCompletedCallsOpen] = useState(true);
   const [isPackageFormOpen, setIsPackageFormOpen] = useState(false);
   const [isPackageHistoryOpen, setIsPackageHistoryOpen] = useState(false);
   const [packageHistoryQuery, setPackageHistoryQuery] = useState('');
@@ -861,6 +920,60 @@ export default function App() {
         (!selectedUnit || item.subtitle.includes(selectedUnit.displayLabel)),
     )
     .slice(0, 5);
+  const callHistoryItems = sortHistoryByNewest(
+    historyItems.filter((item) => item.type === 'call'),
+  );
+  const missedCallHistory = callHistoryItems.filter(isMissedCallItem);
+  const completedCallHistory = callHistoryItems.filter(
+    (item) => !missedCallHistory.some((missed) => missed.id === item.id),
+  );
+  const unreadMissedCallCount = missedCallHistory.filter(
+    (item) => !item.readAt && !readCallIds.includes(item.id),
+  ).length;
+  const messageHistoryItems = sortHistoryByNewest(
+    historyItems.filter((item) => item.type === 'message'),
+  );
+  const messageConversationItems: MessageConversationItem[] =
+    filteredMessageUnits
+      .map((unit) => {
+        const unitTerms = [
+          unit.displayLabel,
+          unit.unitNumber,
+          unit.block,
+          unit.privacyLabel,
+        ]
+          .filter(Boolean)
+          .map((value) => normalizeLookup(String(value)));
+        const relatedMessages = messageHistoryItems.filter((item) => {
+          const subtitle = normalizeLookup(item.subtitle);
+          const title = normalizeLookup(item.title);
+
+          return unitTerms.some(
+            (term) =>
+              term.length > 0 &&
+              (subtitle.includes(term) || title.includes(term)),
+          );
+        });
+        const latest = relatedMessages[0];
+        const unreadCount = relatedMessages.filter(
+          (item) =>
+            item.direction === 'inbound' &&
+            !item.readAt &&
+            !readMessageIds.includes(item.id),
+        ).length;
+
+        return { unit, latest, unreadCount };
+      })
+      .sort((a, b) => {
+        if (a.unreadCount !== b.unreadCount) {
+          return b.unreadCount - a.unreadCount;
+        }
+
+        return (
+          new Date(b.latest?.occurredAt ?? 0).getTime() -
+          new Date(a.latest?.occurredAt ?? 0).getTime()
+        );
+      });
   const activePackages = packageItems.filter((item) => item.status !== 'delivered');
   const filteredPackageHistory = packageItems.filter((item) => {
     const term = packageHistoryQuery.trim().toLowerCase();
@@ -912,9 +1025,6 @@ export default function App() {
       tone: 'blue' as const,
     })),
   ];
-  const unreadAlertCount = porterAlerts.filter(
-    (item) => !readAlertIds.includes(item.id),
-  ).length;
   const unreadMessageCount = messageAlerts.filter(
     (item) => !readMessageIds.includes(item.id),
   ).length;
@@ -925,9 +1035,18 @@ export default function App() {
     (item) => item.targetView !== 'messageHub',
   );
   const blockedUnitAlerts = messageUnits.filter((unit) => unit.isAccessBlocked);
-  const unseenCallAlerts = historyItems.filter(
-    (item) => item.type === 'call' && !item.readAt,
+  const unreadBlockedUnitAlerts = blockedUnitAlerts.filter(
+    (unit) => !readBlockedUnitIds.includes(unit.id),
   );
+  const unreadOperationalAlerts = operationalAlerts.filter(
+    (item) => !readAlertIds.includes(item.id),
+  );
+  const unreadAlertCount =
+    unreadBlockedUnitAlerts.length + unreadOperationalAlerts.length;
+  const unseenCallAlerts = historyItems.filter(
+    (item) => item.type === 'call' && !item.readAt && !readCallIds.includes(item.id),
+  );
+  const unreadCallCount = unseenCallAlerts.length;
 
   async function readApiJson<T>(response: Response): Promise<T> {
     const text = await response.text();
@@ -956,8 +1075,6 @@ export default function App() {
 
     return data as T;
   }
-  const porterAlertIds = porterAlerts.map((item) => item.id).join('|');
-
   useEffect(() => {
     if (!activeCall || activeCall.status === 'ended') {
       return;
@@ -987,42 +1104,35 @@ export default function App() {
       return;
     }
 
-    const notificationKey = `${unreadAlertCount}-${unreadMessageCount}`;
+    const notificationKey = `${unreadAlertCount}-${unreadMessageCount}-${unreadCallCount}`;
 
     if (
       notificationKey === lastNotificationKey ||
-      (unreadAlertCount === 0 && unreadMessageCount === 0)
+      (unreadAlertCount === 0 && unreadMessageCount === 0 && unreadCallCount === 0)
     ) {
       return;
     }
 
     setLastNotificationKey(notificationKey);
     void notifyDevice(
-      unreadMessageCount > 0 ? 'Mensajeria pendiente' : 'Alertas de porteria',
+      unreadMessageCount > 0
+        ? 'Mensajeria pendiente'
+        : unreadCallCount > 0
+          ? 'Llamadas pendientes'
+          : 'Alertas de porteria',
       unreadMessageCount > 0
         ? `Tienes ${unreadMessageCount} chat(s) por revisar.`
-        : `Tienes ${unreadAlertCount} alerta(s) por revisar.`,
+        : unreadCallCount > 0
+          ? `Tienes ${unreadCallCount} llamada(s) por revisar.`
+          : `Tienes ${unreadAlertCount} alerta(s) por revisar.`,
     );
   }, [
     isPorterSession,
     lastNotificationKey,
     unreadAlertCount,
+    unreadCallCount,
     unreadMessageCount,
   ]);
-
-  useEffect(() => {
-    if (activePorterView !== 'alerts' || porterAlerts.length === 0) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setReadAlertIds((current) =>
-        Array.from(new Set([...current, ...porterAlerts.map((item) => item.id)])),
-      );
-    }, 1800);
-
-    return () => clearTimeout(timer);
-  }, [activePorterView, porterAlertIds]);
 
   if (!fontsLoaded) {
     return (
@@ -1129,6 +1239,8 @@ export default function App() {
     setQuery('');
     setHasUnitSearchResults(false);
     setActiveCall(null);
+    setIsCallLogOpen(false);
+    void loadHistory();
   }
 
   function openUnitSearch() {
@@ -1138,6 +1250,20 @@ export default function App() {
     setUnits([]);
     setQuery('');
     setHasUnitSearchResults(false);
+  }
+
+  function handleBlockedUnitAlertPress(unit: UnitSearchResult) {
+    setReadBlockedUnitIds((current) => Array.from(new Set([...current, unit.id])));
+    void loadUnit(unit);
+  }
+
+  function handleCallHistoryPress(item: HistoryItem) {
+    setReadCallIds((current) => Array.from(new Set([...current, item.id])));
+    setQuery(item.subtitle);
+    setNotice({
+      tone: 'info',
+      text: `Llamada revisada: ${item.subtitle}. Puedes buscar la unidad para volver a marcar.`,
+    });
   }
 
   function handleAlertPress(alert: PorterAlert) {
@@ -1314,12 +1440,16 @@ export default function App() {
     setUnits([]);
     setSelectedSummary(null);
     setSelectedUnit(null);
-    setHistoryItems([]);
+    if (activePorterView !== 'calls') {
+      setHistoryItems([]);
+    }
     setChatHistory([]);
     setMessageQuery('');
     setMessageUnits([]);
     setReadMessageIds([]);
     setReadAlertIds([]);
+    setReadBlockedUnitIds([]);
+    setReadCallIds([]);
     setLastNotificationKey('');
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
@@ -1334,6 +1464,9 @@ export default function App() {
     setPackageItems([]);
     setIsActiveVisitorsOpen(false);
     setIsCallHistoryOpen(false);
+    setIsCallLogOpen(false);
+    setIsMissedCallsOpen(false);
+    setIsCompletedCallsOpen(true);
     setIsPackageFormOpen(false);
     resetVisitorForm();
     setNotice({ tone: 'info', text: 'Sesion cerrada.' });
@@ -1364,7 +1497,9 @@ export default function App() {
     setHasUnitSearchResults(true);
     setSelectedSummary(null);
     setSelectedUnit(null);
-    setHistoryItems([]);
+    if (activePorterView !== 'calls') {
+      setHistoryItems([]);
+    }
     setChatHistory([]);
     setIsHistoryOpen(false);
     setPendingAuthorizations([]);
@@ -1779,7 +1914,13 @@ export default function App() {
 
     try {
       const data = await request<{
-        call: { id: string; status: string; startedAt: string; message: string };
+        call: {
+          id: string;
+          status: string;
+          startedAt: string;
+          phoneE164?: string | null;
+          message: string;
+        };
       }>(`/api/porter/units/${callUnit.id}/calls`, {
         method: 'POST',
         body: JSON.stringify({
@@ -1796,7 +1937,12 @@ export default function App() {
       });
       setIsCallHistoryOpen(false);
       setNotice({ tone: 'success', text: data.call.message });
-      await loadHistory();
+
+      if (status === 'initiated') {
+        await startSimCall(data.call.phoneE164);
+      }
+
+      void loadHistory();
     } catch (error) {
       setNotice({
         tone: 'error',
@@ -1805,6 +1951,39 @@ export default function App() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function startSimCall(phoneE164?: string | null) {
+    const phone = normalizePhoneForDial(phoneE164 ?? '');
+
+    if (!phone) {
+      setNotice({
+        tone: 'error',
+        text: 'No hay numero habilitado para llamar a esta unidad.',
+      });
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      setNotice({
+        tone: 'info',
+        text: 'La llamada por SIM solo se prueba en Android instalado. En web se conserva el registro.',
+      });
+      return;
+    }
+
+    try {
+      await Linking.openURL(`tel:${phone}`);
+      setNotice({
+        tone: 'success',
+        text: 'Se abrio la llamada del telefono. El numero sigue protegido dentro de la app.',
+      });
+    } catch {
+      setNotice({
+        tone: 'error',
+        text: 'Android no pudo abrir la llamada. Revisa permisos de telefono y que el equipo tenga SIM activa.',
+      });
     }
   }
 
@@ -2301,6 +2480,26 @@ export default function App() {
     });
   }
 
+  function formatHistoryDateTime(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const formattedDate = date.toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const formattedTime = date.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `${formattedDate} - ${formattedTime}`;
+  }
+
   return (
     <PaperProvider theme={paperTheme}>
       <SafeAreaView style={[styles.screen, !session ? styles.loginScreen : null]}>
@@ -2480,45 +2679,53 @@ export default function App() {
                 onPress={openBlockedUnitsView}
                 style={styles.homeMetricCard}
               >
-                <IconBadge name="ban-outline" size="sm" tone="amber" />
+                <View style={styles.homeMetricTopRow}>
+                  <IconBadge name="ban-outline" size="sm" tone="amber" />
+                  <Ionicons color={palette.primary} name="chevron-forward" size={16} />
+                </View>
                 <View style={styles.homeMetricTextBlock}>
                   <Text style={styles.homeMetricValue}>{blockedUnitAlerts.length}</Text>
                   <Text style={styles.homeMetricLabel}>Unidades bloqueadas</Text>
                 </View>
-                <Ionicons color={palette.primary} name="chevron-forward" size={16} />
               </Pressable>
               <Pressable
                 onPress={openMessageHub}
                 style={styles.homeMetricCard}
               >
-                <IconBadge name="chatbubble-ellipses-outline" size="sm" />
+                <View style={styles.homeMetricTopRow}>
+                  <IconBadge name="chatbubble-ellipses-outline" size="sm" />
+                  <Ionicons color={palette.primary} name="chevron-forward" size={16} />
+                </View>
                 <View style={styles.homeMetricTextBlock}>
                   <Text style={styles.homeMetricValue}>{unreadMessageCount}</Text>
                   <Text style={styles.homeMetricLabel}>Mensajes sin leer</Text>
                 </View>
-                <Ionicons color={palette.primary} name="chevron-forward" size={16} />
               </Pressable>
               <Pressable
                 onPress={openAlertsView}
                 style={styles.homeMetricCard}
               >
-                <IconBadge name="notifications-outline" size="sm" tone="green" />
+                <View style={styles.homeMetricTopRow}>
+                  <IconBadge name="notifications-outline" size="sm" tone="green" />
+                  <Ionicons color={palette.primary} name="chevron-forward" size={16} />
+                </View>
                 <View style={styles.homeMetricTextBlock}>
                   <Text style={styles.homeMetricValue}>{unreadAlertCount}</Text>
                   <Text style={styles.homeMetricLabel}>Alertas sin ver</Text>
                 </View>
-                <Ionicons color={palette.primary} name="chevron-forward" size={16} />
               </Pressable>
               <Pressable
                 onPress={openCallsSearch}
                 style={styles.homeMetricCard}
               >
-                <IconBadge name="call-outline" size="sm" tone="neutral" />
+                <View style={styles.homeMetricTopRow}>
+                  <IconBadge name="call-outline" size="sm" tone="neutral" />
+                  <Ionicons color={palette.primary} name="chevron-forward" size={16} />
+                </View>
                 <View style={styles.homeMetricTextBlock}>
-                  <Text style={styles.homeMetricValue}>{unseenCallAlerts.length}</Text>
+                  <Text style={styles.homeMetricValue}>{unreadCallCount}</Text>
                   <Text style={styles.homeMetricLabel}>Llamadas sin ver</Text>
                 </View>
-                <Ionicons color={palette.primary} name="chevron-forward" size={16} />
               </Pressable>
             </View>
 
@@ -2563,7 +2770,7 @@ export default function App() {
                   Consulta bloqueos activos o filtra cualquier unidad para revisar su estado.
                 </Text>
               </View>
-              <ActionButton compact label="Inicio" onPress={openPorterHome} tone="secondary" />
+              <ActionButton compact label="Inicio" onPress={openPorterHome} tone="home" />
             </View>
 
             <View style={styles.searchRow}>
@@ -2794,7 +3001,7 @@ export default function App() {
                   Lista completa o filtro por bloque, apartamento o combinacion.
                 </Text>
               </View>
-              <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
+              <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="home" />
             </View>
             <View style={styles.searchRow}>
               <PaperTextInput
@@ -2875,37 +3082,43 @@ export default function App() {
                   Busca una unidad y registra la llamada sin exponer datos sensibles.
                 </Text>
               </View>
-              <IconBadge name="call-outline" size="lg" />
+              <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
+                {unreadCallCount} sin revisar
+              </Chip>
             </View>
-            <View style={styles.searchRow}>
-              <PaperTextInput
-                autoCapitalize="characters"
-                dense
-                mode="outlined"
-                onChangeText={setQuery}
-                label="Bloque o apto"
-                outlineStyle={styles.paperInputOutline}
-                placeholder="Ejemplo: 35 1C"
-                style={[styles.paperInput, styles.searchInput]}
-                value={query}
-              />
+
+            <View style={styles.callSearchBlock}>
+              <Text style={styles.subsectionTitle}>Buscar unidad para llamar</Text>
+              <View style={styles.searchRow}>
+                <PaperTextInput
+                  autoCapitalize="characters"
+                  dense
+                  mode="outlined"
+                  onChangeText={setQuery}
+                  label="Bloque o apto"
+                  outlineStyle={styles.paperInputOutline}
+                  placeholder="Ejemplo: 35 1C"
+                  style={[styles.paperInput, styles.searchInput]}
+                  value={query}
+                />
+                <ActionButton
+                  compact
+                  disabled={loading}
+                  label="Buscar"
+                  onPress={() => void searchUnits()}
+                />
+              </View>
               <ActionButton
                 compact
                 disabled={loading}
-                label="Buscar"
-                onPress={() => void searchUnits()}
+                label="Ver todas las unidades"
+                onPress={() => {
+                  setQuery('');
+                  void searchUnits('');
+                }}
+                tone="secondary"
               />
             </View>
-            <ActionButton
-              compact
-              disabled={loading}
-              label="Ver todas las unidades"
-              onPress={() => {
-                setQuery('');
-                void searchUnits('');
-              }}
-              tone="secondary"
-            />
 
             {loading ? <ActivityIndicator color="#111827" /> : null}
 
@@ -2927,7 +3140,7 @@ export default function App() {
                 scrollEnabled={false}
               />
             ) : (
-              <View style={styles.emptyState}>
+              <View style={styles.emptyStateCompact}>
                 <IconBadge name="call-outline" size="lg" />
                 <Text style={styles.emptyStateTitle}>Busca una unidad</Text>
                 <Text style={styles.emptyStateText}>
@@ -2935,12 +3148,71 @@ export default function App() {
                 </Text>
               </View>
             )}
+
+            <ActionButton
+              compact
+              label={
+                isCallLogOpen
+                  ? 'Ocultar historial de llamadas'
+                  : 'Ver historial de llamadas'
+              }
+              onPress={() => setIsCallLogOpen((current) => !current)}
+              tone={unreadMissedCallCount > 0 ? 'warning' : 'secondary'}
+            />
+
+            {isCallLogOpen ? (
+              <View style={styles.callLogList}>
+                {callHistoryItems.length === 0 ? (
+                  <Text style={styles.hint}>Aun no hay llamadas registradas.</Text>
+                ) : (
+                  callHistoryItems.map((item) => {
+                    const isMissed = isMissedCallItem(item);
+                    const directionLabel = isMissed
+                      ? 'Perdida'
+                      : item.direction === 'inbound'
+                        ? 'Entrante'
+                        : 'Saliente';
+
+                    return (
+                      <Pressable
+                        key={`call-log-${item.id}`}
+                        onPress={() => handleCallHistoryPress(item)}
+                        style={[
+                          styles.callLogItem,
+                          isMissed &&
+                          !item.readAt &&
+                          !readCallIds.includes(item.id)
+                            ? styles.callLogItemUnreadMissed
+                            : null,
+                        ]}
+                      >
+                        <IconBadge
+                          name="call-outline"
+                          size="sm"
+                          tone={isMissed ? 'amber' : 'neutral'}
+                        />
+                        <View style={styles.panelHeadingText}>
+                          <View style={styles.callLogHeader}>
+                            <Text style={styles.historyTitle}>{directionLabel}</Text>
+                            <Text style={styles.historyType}>{item.status}</Text>
+                          </View>
+                          <Text style={styles.historyMeta}>{item.subtitle}</Text>
+                          <Text style={styles.historyMeta}>
+                            {formatHistoryDateTime(item.occurredAt)}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
         {isPorterSession && activePorterView === 'movements' ? (
           <View style={styles.panel}>
-            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="home" />
             <AccordionToggle
               isOpen={isMovementsOpen}
               onPress={toggleMovements}
@@ -3017,7 +3289,7 @@ export default function App() {
 
         {isPorterSession && activePorterView === 'pending' ? (
           <View style={styles.panel}>
-            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="home" />
             <AccordionToggle
               isOpen={isPendingOpen}
               onPress={togglePendingAuthorizations}
@@ -3088,7 +3360,7 @@ export default function App() {
 
         {isPorterSession && activePorterView === 'history' ? (
           <View style={styles.panel}>
-            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="secondary" />
+            <ActionButton compact label="Inicio" onPress={() => setActivePorterView('home')} tone="home" />
             <AccordionToggle
               isOpen={isHistoryOpen}
               onPress={toggleHistory}
@@ -3412,88 +3684,123 @@ export default function App() {
               <View style={styles.panelHeadingText}>
                 <Text style={styles.panelTitle}>Mensajeria</Text>
                 <Text style={styles.hint}>
-                  Busca una unidad para abrir el chat o revisa mensajes pendientes.
+                  Conversaciones protegidas por unidad.
                 </Text>
               </View>
               <Chip compact style={styles.roleChip} textStyle={styles.roleChipText}>
                 {unreadMessageCount} pendientes
               </Chip>
             </View>
-            <View style={styles.searchRow}>
-              <PaperTextInput
-                autoCapitalize="characters"
-                dense
-                mode="outlined"
-                onChangeText={setMessageQuery}
-                label="Buscar conversacion"
-                outlineStyle={styles.paperInputOutline}
-                placeholder="Unidad, bloque o apartamento"
-                style={[styles.paperInput, styles.searchInput]}
-                value={messageQuery}
-              />
-              <ActionButton
-                compact
-                disabled={loading}
-                label="Actualizar"
-                onPress={() => void searchMessageUnits('')}
-                tone="secondary"
-              />
-            </View>
-            {filteredMessageUnits.length > 0 ? (
-              <FlatList
-                data={filteredMessageUnits}
-                keyExtractor={(item) => `message-unit-${item.id}`}
-                renderItem={({ item }) => (
-                  <Pressable onPress={() => void openUnitChat(item)} style={styles.chatListItem}>
-                    <View style={styles.chatListAvatar}>
-                      <Text style={styles.chatListAvatarText}>
-                        {item.unitNumber.slice(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={styles.panelHeadingText}>
-                      <Text style={styles.unitTitle}>{item.displayLabel}</Text>
-                      <Text style={styles.unitMeta}>{item.privacyLabel}</Text>
-                      <Text style={styles.unitMeta}>Abrir chat protegido</Text>
-                    </View>
-                    <Ionicons color={palette.primary} name="chevron-forward" size={18} />
-                  </Pressable>
-                )}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <IconBadge name="chatbubble-ellipses-outline" size="lg" />
-                <Text style={styles.emptyStateTitle}>Sin conversaciones visibles</Text>
-                <Text style={styles.emptyStateText}>
-                  Actualiza el listado o prueba con otro criterio de busqueda.
-                </Text>
-              </View>
-            )}
-            <Text style={styles.subsectionTitle}>Chats pendientes por leer</Text>
-            {unreadMessageAlerts.length === 0 ? (
-              <View style={styles.emptyState}>
-                <IconBadge name="chatbubble-ellipses-outline" size="lg" />
-                <Text style={styles.emptyStateTitle}>Sin chats pendientes</Text>
-                <Text style={styles.emptyStateText}>
-                  Cuando llegue un mensaje de WhatsApp, aparecera aqui para abrir el chat.
-                </Text>
-              </View>
-            ) : (
-              unreadMessageAlerts.map((item) => (
+            <View style={styles.messageHubShell}>
+              <View style={styles.messageSearchRow}>
+                <Ionicons color={palette.muted} name="search-outline" size={18} />
+                <TextInput
+                  autoCapitalize="characters"
+                  onChangeText={setMessageQuery}
+                  placeholder="Buscar chat por unidad"
+                  placeholderTextColor="#91a4bd"
+                  style={styles.messageSearchInput}
+                  value={messageQuery}
+                />
                 <Pressable
-                  key={`message-alert-${item.id}`}
-                  onPress={() => void openChatFromHistory(item)}
-                  style={[
-                    styles.alertItem,
-                    readMessageIds.includes(item.id) ? styles.alertItemRead : null,
-                  ]}
+                  disabled={loading}
+                  onPress={() => void searchMessageUnits('')}
+                  style={styles.messageRefreshButton}
                 >
-                  <Text style={styles.historyType}>mensaje</Text>
-                  <Text style={styles.historyTitle}>{item.title}</Text>
-                  <Text style={styles.historyMeta}>{item.subtitle}</Text>
+                  <Ionicons color={palette.primary} name="refresh-outline" size={18} />
                 </Pressable>
-              ))
-            )}
+              </View>
+
+              {messageConversationItems.length > 0 ? (
+                <FlatList
+                  data={messageConversationItems}
+                  keyExtractor={(item) => `message-unit-${item.unit.id}`}
+                  renderItem={({ item }) => {
+                    const latestText =
+                      item.latest?.title ||
+                      item.latest?.status ||
+                      'Sin mensajes registrados';
+                    const latestTime = item.latest
+                      ? formatChatTime(item.latest.occurredAt)
+                      : '';
+
+                    return (
+                      <Pressable
+                        onPress={() =>
+                          item.latest && item.unreadCount > 0
+                            ? void openChatFromHistory(item.latest)
+                            : void openUnitChat(item.unit)
+                        }
+                        style={[
+                          styles.mobileChatListItem,
+                          item.unreadCount > 0 ? styles.mobileChatListItemUnread : null,
+                        ]}
+                      >
+                        <View style={styles.chatListAvatar}>
+                          <Text style={styles.chatListAvatarText}>
+                            {item.unit.unitNumber.slice(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.mobileChatContent}>
+                          <View style={styles.mobileChatTopRow}>
+                            <Text style={styles.mobileChatTitle}>
+                              {item.unit.displayLabel}
+                            </Text>
+                            {latestTime ? (
+                              <Text
+                                style={[
+                                  styles.mobileChatTime,
+                                  item.unreadCount > 0
+                                    ? styles.mobileChatTimeUnread
+                                    : null,
+                                ]}
+                              >
+                                {latestTime}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <View style={styles.mobileChatBottomRow}>
+                            <View style={styles.mobileChatPreviewBlock}>
+                              <Text style={styles.mobileChatResident}>
+                                {item.unit.privacyLabel}
+                              </Text>
+                              <Text
+                                numberOfLines={1}
+                                style={styles.mobileChatPreview}
+                              >
+                                {latestText}
+                              </Text>
+                            </View>
+                            {item.unreadCount > 0 ? (
+                              <View style={styles.mobileUnreadBadge}>
+                                <Text style={styles.mobileUnreadBadgeText}>
+                                  {item.unreadCount}
+                                </Text>
+                              </View>
+                            ) : (
+                              <Ionicons
+                                color={palette.muted}
+                                name="chevron-forward"
+                                size={17}
+                              />
+                            )}
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  }}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <IconBadge name="chatbubble-ellipses-outline" size="lg" />
+                  <Text style={styles.emptyStateTitle}>Sin conversaciones visibles</Text>
+                  <Text style={styles.emptyStateText}>
+                    Actualiza el listado o prueba con otro criterio de busqueda.
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         ) : null}
 
@@ -3516,8 +3823,11 @@ export default function App() {
                 {blockedUnitAlerts.map((unit) => (
                   <Pressable
                     key={`blocked-${unit.id}`}
-                    onPress={() => void loadUnit(unit)}
-                    style={styles.alertItem}
+                    onPress={() => handleBlockedUnitAlertPress(unit)}
+                    style={[
+                      styles.alertItem,
+                      readBlockedUnitIds.includes(unit.id) ? styles.alertItemRead : null,
+                    ]}
                   >
                     <View style={styles.alertHeaderRow}>
                       <IconBadge name="ban-outline" size="sm" tone="amber" />
@@ -4083,11 +4393,18 @@ export default function App() {
               onPress={openCallsSearch}
               style={activePorterView === 'calls' ? styles.bottomNavItemActive : styles.bottomNavItem}
             >
-              <Ionicons
-                color={activePorterView === 'calls' ? palette.primary : palette.muted}
-                name="call-outline"
-                size={20}
-              />
+              <View style={styles.navIconWrap}>
+                <Ionicons
+                  color={activePorterView === 'calls' ? palette.primary : palette.muted}
+                  name="call-outline"
+                  size={20}
+                />
+                {unreadCallCount > 0 ? (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>{unreadCallCount}</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={activePorterView === 'calls' ? styles.bottomNavTextActive : styles.bottomNavText}>
                 Llamadas
               </Text>
@@ -4715,36 +5032,44 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   homeMetricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   homeMetricCard: {
-    alignItems: 'center',
     backgroundColor: '#ffffff',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    minHeight: 72,
+    flexGrow: 1,
+    flexBasis: '48%',
+    gap: 10,
+    justifyContent: 'space-between',
+    minHeight: 104,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+  },
+  homeMetricTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   homeMetricTextBlock: {
-    flex: 1,
+    gap: 2,
     minWidth: 0,
   },
   homeMetricValue: {
     color: palette.ink,
     fontFamily: appFonts.black,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
-    lineHeight: 26,
+    lineHeight: 28,
   },
   homeMetricLabel: {
     color: palette.muted,
     fontFamily: appFonts.medium,
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   homeShortcutGrid: {
     gap: 10,
@@ -4818,6 +5143,11 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
     padding: 12,
+  },
+  accordionHeaderWarning: {
+    backgroundColor: '#fff8e7',
+    borderColor: '#ffd37a',
+    borderWidth: 1,
   },
   accordionTitleBlock: {
     flex: 1,
@@ -5053,6 +5383,14 @@ const styles = StyleSheet.create({
     minHeight: 180,
     paddingHorizontal: 18,
     paddingVertical: 22,
+  },
+  emptyStateCompact: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
   },
   emptyStateTitle: {
     color: palette.ink,
@@ -5336,6 +5674,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  callSearchBlock: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
+  },
+  callLogList: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  callLogItem: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderBottomColor: palette.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  callLogItemUnreadMissed: {
+    backgroundColor: '#fff8e7',
+  },
+  callLogHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
   callButton: {
     alignItems: 'center',
     borderRadius: 8,
@@ -5446,6 +5817,39 @@ const styles = StyleSheet.create({
     minHeight: 520,
     overflow: 'hidden',
   },
+  messageHubShell: {
+    backgroundColor: '#ffffff',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  messageSearchRow: {
+    alignItems: 'center',
+    backgroundColor: '#f6faff',
+    borderBottomColor: palette.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  messageSearchInput: {
+    color: palette.ink,
+    flex: 1,
+    fontFamily: appFonts.light,
+    fontSize: 14,
+    minHeight: 38,
+    padding: 0,
+  },
+  messageRefreshButton: {
+    alignItems: 'center',
+    backgroundColor: '#eaf4ff',
+    borderRadius: 8,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
   chatListItem: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -5455,6 +5859,83 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 4,
     paddingVertical: 12,
+  },
+  mobileChatListItem: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderBottomColor: palette.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  mobileChatListItemUnread: {
+    backgroundColor: '#f6faff',
+  },
+  mobileChatContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileChatTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  mobileChatTitle: {
+    color: palette.ink,
+    flex: 1,
+    fontFamily: appFonts.medium,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  mobileChatTime: {
+    color: palette.muted,
+    fontFamily: appFonts.light,
+    fontSize: 11,
+  },
+  mobileChatTimeUnread: {
+    color: palette.green,
+    fontFamily: appFonts.medium,
+    fontWeight: '900',
+  },
+  mobileChatBottomRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  mobileChatPreviewBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileChatResident: {
+    color: palette.muted,
+    fontFamily: appFonts.medium,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  mobileChatPreview: {
+    color: palette.muted,
+    fontFamily: appFonts.light,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  mobileUnreadBadge: {
+    alignItems: 'center',
+    backgroundColor: palette.green,
+    borderRadius: 999,
+    minWidth: 22,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  mobileUnreadBadgeText: {
+    color: '#ffffff',
+    fontFamily: appFonts.medium,
+    fontSize: 11,
+    fontWeight: '900',
   },
   chatListAvatar: {
     alignItems: 'center',
