@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 type Summary = {
   units: number;
@@ -1686,6 +1686,8 @@ function SidebarSessionCard({
   onLogout: () => void;
   user: AuthUser;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const sessionRef = useRef<HTMLDivElement | null>(null);
   const initials = user.username
     .split(/[.\s_-]+/)
     .filter(Boolean)
@@ -1694,28 +1696,74 @@ function SidebarSessionCard({
     .join("") || "A";
   const roleLabel = user.role === "superadmin" ? "Superadmin" : "Admin";
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && sessionRef.current && !sessionRef.current.contains(target)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen]);
+
   return (
-    <section className="mt-3 rounded-xl border border-[#DCE8F5] bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-wide text-[#1877F2]">
-        Sesion activa
-      </p>
-      <div className="mt-2 flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] text-sm font-black text-white">
-          {initials}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-[#123047]">{user.username}</p>
-          <p className="text-xs font-bold text-[#5B6F8A]">{roleLabel}</p>
-        </div>
-      </div>
+    <div className="relative mt-3" ref={sessionRef}>
       <button
-        className="mt-3 w-full rounded-lg bg-red-50 px-3 py-2 text-left text-xs font-black text-red-700 transition hover:bg-red-600 hover:text-white"
-        onClick={onLogout}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 rounded-lg border border-[#DCE8F5] bg-white px-3 py-2 text-left shadow-sm transition hover:border-[#1877F2] hover:bg-[#F7FAFD]"
+        onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
-        Cerrar sesion
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#1877F2] text-xs font-black text-white">
+            {initials}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-black uppercase tracking-wide text-[#1877F2]">
+              Sesión
+            </span>
+            <span className="block truncate text-xs font-black text-[#123047]">
+              {user.username}
+            </span>
+          </span>
+        </span>
+        <span className="text-xs font-black text-[#1877F2]">{isOpen ? "^" : "v"}</span>
       </button>
-    </section>
+
+      {isOpen ? (
+        <div className="absolute left-0 right-0 z-20 mt-2 rounded-xl border border-[#DCE8F5] bg-white p-3 shadow-xl">
+          <p className="text-[10px] font-black uppercase tracking-wide text-[#1877F2]">
+            Sesión activa
+          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] text-sm font-black text-white">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-[#123047]">{user.username}</p>
+              <p className="text-xs font-bold text-[#5B6F8A]">{roleLabel}</p>
+            </div>
+          </div>
+          <button
+            className="mt-3 w-full rounded-lg bg-red-50 px-3 py-2 text-left text-xs font-black text-red-700 transition hover:bg-red-600 hover:text-white"
+            onClick={onLogout}
+            type="button"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
