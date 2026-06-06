@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 type Summary = {
   units: number;
@@ -703,22 +703,24 @@ export function AdminDashboard({
         </aside>
 
         <section className="flex min-w-0 flex-col">
-          <header className="flex flex-col gap-4 border-b border-[#DCE8F5] bg-white px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase text-[#1877F2]">Panel administrativo</p>
-              <h2 className="text-3xl font-black">Arcadas de San Isidro</h2>
-              <p className="text-sm text-[#5B6F8A]">
-                Gestiona roles, residentes, bloqueos, mensajeria y reportes.
-              </p>
-            </div>
-            <UserProfileMenu
-              isOpen={profileMenuOpen}
-              onClose={() => setProfileMenuOpen(false)}
-              onLogout={logout}
-              onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
-              user={session}
-            />
-          </header>
+          {section !== "messages" ? (
+            <header className="flex flex-col gap-4 border-b border-[#DCE8F5] bg-white px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase text-[#1877F2]">Panel administrativo</p>
+                <h2 className="text-3xl font-black">Arcadas de San Isidro</h2>
+                <p className="text-sm text-[#5B6F8A]">
+                  Gestiona roles, residentes, bloqueos, mensajeria y reportes.
+                </p>
+              </div>
+              <UserProfileMenu
+                isOpen={profileMenuOpen}
+                onClose={() => setProfileMenuOpen(false)}
+                onLogout={logout}
+                onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
+                user={session}
+              />
+            </header>
+          ) : null}
 
           <div className="grid gap-6 px-6 py-6 pb-24">
             {section === "dashboard" ? (
@@ -938,7 +940,19 @@ export function AdminDashboard({
 
             {section === "messages" ? (
               <section className="rounded-xl border border-[#DCE8F5] bg-white p-5">
-                <ModuleHeader description="Envia mensajes por WhatsApp y registra notificaciones push." title="Mensajeria" />
+                <ModuleHeader
+                  description="Envia mensajes por WhatsApp y registra notificaciones push."
+                  rightSlot={
+                    <UserProfileMenu
+                      isOpen={profileMenuOpen}
+                      onClose={() => setProfileMenuOpen(false)}
+                      onLogout={logout}
+                      onToggle={() => setProfileMenuOpen((isOpen) => !isOpen)}
+                      user={session}
+                    />
+                  }
+                  title="Mensajeria"
+                />
                 <ChatPanel
                   chats={chatThreads}
                   hasMoreMessages={chatHasMore}
@@ -1751,12 +1765,23 @@ function AdminLogin({
   );
 }
 
-function ModuleHeader({ title, description }: { title: string; description: string }) {
+function ModuleHeader({
+  title,
+  description,
+  rightSlot,
+}: {
+  title: string;
+  description: string;
+  rightSlot?: ReactNode;
+}) {
   return (
-    <div className="mb-4">
-      <p className="text-xs font-black uppercase text-[#1877F2]">Administracion</p>
-      <h3 className="text-2xl font-black">{title}</h3>
-      <p className="text-sm text-[#5B6F8A]">{description}</p>
+    <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p className="text-xs font-black uppercase text-[#1877F2]">Administracion</p>
+        <h3 className="text-2xl font-black">{title}</h3>
+        <p className="text-sm text-[#5B6F8A]">{description}</p>
+      </div>
+      {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
     </div>
   );
 }
