@@ -189,6 +189,7 @@ export function AdminDashboard({
   const [notice, setNotice] = useState("Inicia sesion para cargar el panel.");
   const [loading, setLoading] = useState(false);
   const [blockingUnitId, setBlockingUnitId] = useState("");
+  const [dashboardCounterRun, setDashboardCounterRun] = useState(0);
 
   const detailUnit = useMemo(
     () => units.find((unit) => unit.id === detailUnitId) ?? null,
@@ -287,6 +288,10 @@ export function AdminDashboard({
   }
 
   function changeSection(nextSection: Section) {
+    if (nextSection === "dashboard") {
+      setDashboardCounterRun((current) => current + 1);
+    }
+
     setSection(nextSection);
     router.push(sectionPaths[nextSection]);
     setUnitQuery("");
@@ -733,7 +738,10 @@ export function AdminDashboard({
                     <div className="rounded-xl border border-[#DCE8F5] bg-white p-6" key={label}>
                       <p className="text-sm font-bold text-[#5B6F8A]">{label}</p>
                       <p className="mt-4 text-5xl font-black">
-                        <AnimatedCounter value={Number(value)} />
+                        <AnimatedCounter
+                          key={`${dashboardCounterRun}-${label}`}
+                          value={Number(value)}
+                        />
                       </p>
                     </div>
                   ))}
