@@ -1149,13 +1149,15 @@ function UnitDetailItem({ label, value }: { label: string; value: string }) {
 }
 
 function AnimatedCounter({ value }: { value: number }) {
-  const [displayValue, setDisplayValue] = useState(0);
+  const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+  const [counterState, setCounterState] = useState({
+    target: safeValue,
+    value: 0,
+  });
 
   useEffect(() => {
-    const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplayValue(safeValue);
+      setCounterState({ target: safeValue, value: safeValue });
       return;
     }
 
@@ -1167,22 +1169,27 @@ function AnimatedCounter({ value }: { value: number }) {
       const progress = Math.min((now - startedAt) / duration, 1);
       const easedProgress = 1 - (1 - progress) ** 3;
 
-      setDisplayValue(Math.round(safeValue * easedProgress));
+      setCounterState({
+        target: safeValue,
+        value: Math.round(safeValue * easedProgress),
+      });
 
       if (progress < 1) {
         animationFrame = window.requestAnimationFrame(tick);
       }
     }
 
-    setDisplayValue(0);
+    setCounterState({ target: safeValue, value: 0 });
     animationFrame = window.requestAnimationFrame(tick);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [value]);
+  }, [safeValue]);
 
-  return <>{displayValue.toLocaleString("es-CO")}</>;
+  const visibleValue = counterState.target === safeValue ? counterState.value : 0;
+
+  return <>{visibleValue.toLocaleString("es-CO")}</>;
 }
 
 function formatShortTime(value: string | null) {
