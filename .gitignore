@@ -21,6 +21,7 @@ out/
 !**/.env.example
 
 # Logs
+.logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -35,3 +36,4 @@ Thumbs.db
 
 # Temporary
 work/
+outputs/apk/
